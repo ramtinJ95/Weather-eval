@@ -1,0 +1,9 @@
+project_id                   = "your-gcp-project-id"
+region                       = "us-central1"
+firestore_location           = "us-central1"
+artifact_registry_repository = "weather-eval"
+cloud_run_service_name       = "weather-eval"
+cloud_run_min_instances      = 0
+cloud_run_max_instances      = 1
+cloud_run_memory             = "256Mi"
+image                        = "us-central1-docker.pkg.dev/your-gcp-project-id/weather-eval/weather-eval:latest"
