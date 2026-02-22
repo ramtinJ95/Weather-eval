@@ -23,6 +23,10 @@ locals {
     "run.googleapis.com",
     "storage.googleapis.com",
   ])
+
+  github_actions_deployer_member = (
+    var.github_actions_deployer_sa_email != null && trimspace(var.github_actions_deployer_sa_email) != ""
+  ) ? "serviceAccount:${trimspace(var.github_actions_deployer_sa_email)}" : null
 }
 
 resource "google_project_service" "required" {
@@ -71,6 +75,38 @@ resource "google_project_iam_member" "cloud_run_firestore" {
   project = var.project_id
   role    = "roles/datastore.user"
   member  = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
+resource "google_project_iam_member" "github_actions_run_admin" {
+  count = local.github_actions_deployer_member == null ? 0 : 1
+
+  project = var.project_id
+  role    = "roles/run.admin"
+  member  = local.github_actions_deployer_member
+}
+
+resource "google_project_iam_member" "github_actions_artifact_registry_writer" {
+  count = local.github_actions_deployer_member == null ? 0 : 1
+
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = local.github_actions_deployer_member
+}
+
+resource "google_storage_bucket_iam_member" "github_actions_processed_data_reader" {
+  count = local.github_actions_deployer_member == null ? 0 : 1
+
+  bucket = google_storage_bucket.processed_data.name
+  role   = "roles/storage.objectViewer"
+  member = local.github_actions_deployer_member
+}
+
+resource "google_service_account_iam_member" "github_actions_act_as_cloud_run_runtime" {
+  count = local.github_actions_deployer_member == null ? 0 : 1
+
+  service_account_id = google_service_account.cloud_run.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = local.github_actions_deployer_member
 }
 
 resource "google_cloud_run_v2_service" "app" {
