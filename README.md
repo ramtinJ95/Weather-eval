@@ -91,6 +91,32 @@ This section describes exactly how metrics are calculated.
 
 ### 1) Input datasets
 
+### 1.0 Exact SMHI endpoints used for frontend numbers
+
+The values shown in frontend charts are derived from these endpoints:
+
+- Lightning API root:
+  - `https://opendata-download-lightning.smhi.se/api/version/latest.json`
+- Lightning per-year listing:
+  - `https://opendata-download-lightning.smhi.se/api/version/latest/year/{year}.json`
+- Lightning per-month listing:
+  - `https://opendata-download-lightning.smhi.se/api/version/latest/year/{year}/month/{month}.json`
+- Lightning daily CSV (raw event rows):
+  - `https://opendata-download-lightning.smhi.se/api/version/latest/year/{year}/month/{month}/day/{day}/data.csv`
+
+- Cloud parameter metadata (station list for parameter 16):
+  - `https://opendata-download-metobs.smhi.se/api/version/latest/parameter/16.json`
+- Cloud station corrected archive CSV:
+  - `https://opendata-download-metobs.smhi.se/api/version/latest/parameter/16/station/{station_id}/period/corrected-archive/data.csv`
+- Cloud station recent months CSV:
+  - `https://opendata-download-metobs.smhi.se/api/version/latest/parameter/16/station/{station_id}/period/latest-months/data.csv`
+
+Frontend chart numbers are returned by backend endpoint:
+- `POST /api/metrics/point`
+
+The backend endpoint reads precomputed local files under:
+- `backend/data/processed/`
+
 #### Lightning (SMHI lightning archive)
 - Source: daily CSV files (2021–2026)
 - Each row is one lightning event with timestamp + lat/lon.
