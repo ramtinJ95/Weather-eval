@@ -117,6 +117,27 @@ Frontend chart numbers are returned by backend endpoint:
 The backend endpoint reads precomputed local files under:
 - `backend/data/processed/`
 
+### 1.1 Data lineage (chart field -> processed source -> raw source)
+
+| Frontend chart field | Backend response path | Processed file(s) | Raw source endpoint(s) |
+|---|---|---|---|
+| Day: lightning count | `daily.days[].lightning_count` | `lightning_h3_r7_daily.jsonl` | Lightning daily CSV: `/year/{y}/month/{m}/day/{d}/data.csv` |
+| Day: cloud mean % | `daily.days[].cloud_mean_pct` | `cloud_station_daily.jsonl` | Cloud station CSVs: `corrected-archive/data.csv`, `latest-months/data.csv` |
+| Month: lightning count | `monthly.months[].lightning_count` | `lightning_h3_r7_monthly.json` | Derived from lightning daily CSV rows |
+| Month: lightning probability | `monthly.months[].lightning_probability` | `lightning_h3_r7_monthly.json` | Derived from lightning daily CSV rows |
+| Month: cloud mean % | `monthly.months[].cloud_mean_pct` | `cloud_station_monthly.json` | Derived from merged cloud station CSV rows |
+| Year: lightning count | `yearly.years[].lightning_count` | `lightning_h3_r7_yearly.json` | Derived from lightning daily CSV rows |
+| Year: lightning probability | `yearly.years[].lightning_probability` | `lightning_h3_r7_yearly.json` | Derived from lightning daily CSV rows |
+| Year: cloud mean % | `yearly.years[].cloud_mean_pct` | `cloud_station_yearly.json` | Derived from merged cloud station CSV rows |
+| Nearest station label/distance | `cloud_station.*` | `station_index.json` | Parameter-16 station metadata: `/parameter/16.json` |
+| Point H3 index | `point.h3_r7` | computed at request time | H3 transform of selected `(lat,lon)` |
+
+Notes:
+- Lightning metrics are spatially aggregated by **H3 resolution 7**.
+- Cloud metrics are **station-based** and mapped via nearest station selection.
+- `latest-months` is merged to extend recency (including 2026), while
+  `corrected-archive` remains preferred when both provide the same timestamp.
+
 #### Lightning (SMHI lightning archive)
 - Source: daily CSV files (2021–2026)
 - Each row is one lightning event with timestamp + lat/lon.
