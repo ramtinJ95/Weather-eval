@@ -81,6 +81,7 @@ class MetricsStore:
         self.start_year = start_year
         self.h3_resolution = h3_resolution
         self.bounds = bounds
+        self.stations_with_any_cloud_data = {station_id for station_id, _year in self.cloud_yearly}
 
     @classmethod
     def from_processed_dir(
@@ -160,9 +161,34 @@ class MetricsStore:
             return None
         return winner, winner_distance
 
+    def nearest_station_with_any_cloud_data(
+        self, lat: float, lon: float
+    ) -> tuple[Station, float] | None:
+        candidates = [
+            station
+            for station in self.stations
+            if station.station_id in self.stations_with_any_cloud_data
+        ]
+        if not candidates:
+            return None
+
+        winner: Station | None = None
+        winner_distance = float("inf")
+        for station in candidates:
+            distance = haversine_km(lat, lon, station.lat, station.lon)
+            if distance < winner_distance:
+                winner = station
+                winner_distance = distance
+
+        if winner is None:
+            return None
+        return winner, winner_distance
+
     def query(self, *, lat: float, lon: float, year: int, month: int) -> PointMetricsResponse:
         h3_cell = latlng_to_h3_cell(lat, lon, self.h3_resolution)
         station_match = self.nearest_station_with_cloud_data(lat, lon, year=year, month=month)
+        if station_match is None:
+            station_match = self.nearest_station_with_any_cloud_data(lat, lon)
         if station_match is None:
             station_match = self.nearest_station(lat, lon)
         station: Station | None = None

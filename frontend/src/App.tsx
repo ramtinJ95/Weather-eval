@@ -38,8 +38,8 @@ function monthName(month: number): string {
 
 function App() {
   const [selectedPoint, setSelectedPoint] = useState<MapPoint | null>(null)
-  const [selectedYear, setSelectedYear] = useState<number>(END_YEAR)
-  const [selectedMonth, setSelectedMonth] = useState<number>(Math.min(12, new Date().getMonth() + 1))
+  const [selectedYear, setSelectedYear] = useState<number>(Math.max(START_YEAR, END_YEAR - 1))
+  const [selectedMonth, setSelectedMonth] = useState<number>(7)
   const [tab, setTab] = useState<TabKey>('day')
   const [data, setData] = useState<PointMetricsResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -84,6 +84,20 @@ function App() {
       ...item,
       lightning_probability_pct: Number((item.lightning_probability * 100).toFixed(2)),
     })) ?? []
+
+  const hasDailyCloud = dailyData.some((item) => item.cloud_mean_pct !== null)
+  const hasDailyLightning = dailyData.some((item) => item.lightning_count > 0)
+  const hasMonthlyCloud = monthlyData.some((item) => item.cloud_mean_pct !== null)
+  const hasMonthlyLightning = monthlyData.some((item) => item.lightning_count > 0)
+  const latestCloudYear = yearlyData.reduce<number | null>((acc, item) => {
+    if (item.cloud_mean_pct === null) {
+      return acc
+    }
+    if (acc === null || item.year > acc) {
+      return item.year
+    }
+    return acc
+  }, null)
 
   return (
     <main className="app-shell">
@@ -152,6 +166,13 @@ function App() {
             {data.cloud_station.station_id}, {data.cloud_station.distance_km} km)
           </p>
         )}
+
+        {selectedYear > (latestCloudYear ?? selectedYear) && latestCloudYear !== null && (
+          <p className="warn">
+            Cloud archive currently has data through <strong>{latestCloudYear}</strong>. Selected year is{' '}
+            {selectedYear}.
+          </p>
+        )}
       </section>
 
       {data && (
@@ -173,6 +194,9 @@ function App() {
 
           {tab === 'day' && (
             <div className="chart-wrap">
+              {!hasDailyCloud && !hasDailyLightning && (
+                <p className="warn">No day-level values for this month at the selected location.</p>
+              )}
               <ResponsiveContainer width="100%" height={330}>
                 <BarChart data={dailyData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -197,6 +221,9 @@ function App() {
 
           {tab === 'month' && (
             <div className="chart-wrap">
+              {!hasMonthlyCloud && !hasMonthlyLightning && (
+                <p className="warn">No month-level values for the selected year at this location.</p>
+              )}
               <ResponsiveContainer width="100%" height={330}>
                 <LineChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" />
