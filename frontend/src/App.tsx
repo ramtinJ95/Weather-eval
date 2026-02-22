@@ -61,18 +61,32 @@ function App() {
       return
     }
 
+    const controller = new AbortController()
     setLoading(true)
     setError(null)
 
-    fetchPointMetrics({
-      lat: selectedPoint.lat,
-      lon: selectedPoint.lon,
-      year: selectedYear,
-      month: selectedMonth,
-    })
+    fetchPointMetrics(
+      {
+        lat: selectedPoint.lat,
+        lon: selectedPoint.lon,
+        year: selectedYear,
+        month: selectedMonth,
+      },
+      controller.signal,
+    )
       .then(setData)
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false))
+      .catch((err: Error) => {
+        if (err.name !== 'AbortError') {
+          setError(err.message)
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
+      })
+
+    return () => controller.abort()
   }, [selectedPoint, selectedYear, selectedMonth])
 
   const yearOptions = useMemo(() => {

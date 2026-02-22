@@ -58,6 +58,7 @@ export async function fetchHello(): Promise<HelloResponse> {
 
 export async function fetchPointMetrics(
   payload: PointMetricsRequest,
+  signal?: AbortSignal,
 ): Promise<PointMetricsResponse> {
   const response = await fetch('/api/metrics/point', {
     method: 'POST',
@@ -65,6 +66,7 @@ export async function fetchPointMetrics(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
+    signal,
   })
 
   if (!response.ok) {
