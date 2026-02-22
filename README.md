@@ -359,9 +359,13 @@ terraform apply
 - Cloud Run is pinned to low-cost defaults in Terraform:
   - `min instances = 0`
   - `max instances = 1`
-  - `memory = 256Mi`
+  - `memory = 2Gi`
+  - `concurrency = 1`
 - Firestore usage is tiny in this starter (single document read).
 - Artifact Registry free tier includes a small monthly storage allowance.
 - Terraform state bucket default location is `US-CENTRAL1` (to align with Cloud Storage always-free regional locations).
 
-> Note: With app region `europe-west1`, some traffic/storage patterns can still create small charges depending on usage.
+> Note: Cloud Run free tier depends on actual monthly vCPU-seconds, GiB-seconds,
+> requests, region, and egress. This configuration minimizes idle cost
+> (`min instances = 0`) and caps scale (`max instances = 1`) but does not
+> guarantee zero cost under all traffic patterns.
