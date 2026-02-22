@@ -26,6 +26,25 @@ jobs:
       - name: Configure docker for Artifact Registry
         run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
 
+      - name: Download processed weather data from GCS
+        env:
+          WEATHER_DATA_BUCKET: ${{ vars.WEATHER_DATA_BUCKET }}
+          WEATHER_DATA_PREFIX: ${{ vars.WEATHER_DATA_PREFIX }}
+        run: |
+          if [ -z "$WEATHER_DATA_BUCKET" ]; then
+            echo "Missing repo variable WEATHER_DATA_BUCKET"
+            exit 1
+          fi
+
+          PREFIX="${WEATHER_DATA_PREFIX:-processed/current}"
+          SRC="gs://${WEATHER_DATA_BUCKET}/${PREFIX}"
+
+          mkdir -p backend/data/processed
+          gcloud storage rsync --recursive "$SRC" backend/data/processed
+
+          echo "Downloaded processed artifacts:"
+          ls -lh backend/data/processed
+
       - name: Build and push image
         env:
           IMAGE_URI: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GAR_REPOSITORY }}/weather-eval:${{ github.sha }}
