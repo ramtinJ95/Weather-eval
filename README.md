@@ -11,8 +11,32 @@ Monorepo starter for:
 
 - `/api/health` returns backend health
 - `/api/hello` reads from Firestore and falls back to default text
-- frontend loads `/api/hello` and displays the message/source
+- `/api/metrics/point` returns cloud/lightning metrics for a selected lat/lon
+- frontend includes a map-click workflow + day/month/year charts
 - Docker image builds frontend and serves it from FastAPI
+
+## Phase 1 weather data pipeline (local-first)
+
+```bash
+cd backend
+uv sync --dev
+uv run python scripts/run_pipeline.py --start-year 2021 --end-year 2026
+```
+
+Quick smoke test (small subset):
+
+```bash
+cd backend
+uv run python scripts/run_pipeline.py \
+  --start-year 2026 --end-year 2026 \
+  --max-lightning-days 5 \
+  --max-cloud-stations 10
+```
+
+The pipeline downloads raw SMHI data and writes local aggregates used by
+`POST /api/metrics/point`.
+
+> Note: first-time download can take a while because it fetches many files.
 
 ## Local run (split dev mode)
 
@@ -35,6 +59,12 @@ npm run dev
 Then open: http://localhost:5173
 
 Vite proxy is preconfigured (`/api` -> `http://localhost:8000`).
+
+In the UI:
+
+1. Click a point on the map in Sweden
+2. Pick year/month
+3. Inspect day/month/year charts
 
 ## Local run (single container mode)
 

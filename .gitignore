@@ -11,6 +11,11 @@ __pycache__/
 node_modules/
 frontend/dist/
 
+# Local weather data artifacts
+backend/data/raw/
+backend/data/processed/
+!backend/data/.gitkeep
+
 # Terraform
 .terraform/
 *.tfstate

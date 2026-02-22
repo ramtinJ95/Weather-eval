@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +13,16 @@ class Settings(BaseSettings):
     firestore_collection: str = "app"
     firestore_document: str = "hello"
     default_hello_message: str = "Hello from fallback (Firestore not configured yet)."
+
+    weather_data_dir: Path = Path(__file__).resolve().parents[1] / "data"
+    processed_data_dir: Path = Path(__file__).resolve().parents[1] / "data" / "processed"
+    weather_start_year: int = 2021
+    weather_h3_resolution: int = 7
+
+    sweden_min_lat: float = 55.0
+    sweden_max_lat: float = 69.5
+    sweden_min_lon: float = 10.5
+    sweden_max_lon: float = 24.5
 
 
 settings = Settings()
