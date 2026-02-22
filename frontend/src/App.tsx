@@ -2,11 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { CircleMarker, MapContainer, TileLayer, useMapEvents } from 'react-leaflet'
 import {
   Bar,
-  BarChart,
   CartesianGrid,
+  ComposedChart,
   Legend,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -19,6 +18,11 @@ type TabKey = 'day' | 'month' | 'year'
 
 const START_YEAR = 2021
 const END_YEAR = Math.max(START_YEAR, new Date().getFullYear())
+
+const SWEDEN_BOUNDS: [[number, number], [number, number]] = [
+  [54.5, 10.0],
+  [70.0, 25.0],
+]
 
 function MapClickHandler({ onPick }: { onPick: (point: MapPoint) => void }) {
   useMapEvents({
@@ -34,6 +38,13 @@ function monthName(month: number): string {
   return new Date(Date.UTC(2024, month - 1, 1)).toLocaleString(undefined, {
     month: 'short',
   })
+}
+
+function shortDate(dateStr: string): string {
+  const parts = dateStr.split('-')
+  const month = Number(parts[1])
+  const day = Number(parts[2])
+  return `${monthName(month)} ${day}`
 }
 
 function App() {
@@ -108,7 +119,15 @@ function App() {
         <p>Click anywhere in Sweden to fetch cloud + lightning metrics.</p>
 
         <div className="map-wrap">
-          <MapContainer center={[62.0, 15.0]} zoom={5} scrollWheelZoom style={{ height: '100%' }}>
+          <MapContainer
+            center={[62.0, 15.0]}
+            zoom={5}
+            scrollWheelZoom
+            maxBounds={SWEDEN_BOUNDS}
+            maxBoundsViscosity={1.0}
+            minZoom={5}
+            style={{ height: '100%' }}
+          >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -198,11 +217,27 @@ function App() {
                 <p className="warn">No day-level values for this month at the selected location.</p>
               )}
               <ResponsiveContainer width="100%" height={330}>
-                <BarChart data={dailyData}>
+                <ComposedChart data={dailyData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} minTickGap={16} />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={shortDate}
+                    tick={{ fontSize: 10 }}
+                    minTickGap={16}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    allowDecimals={false}
+                    label={{ value: 'Lightning Count', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    domain={[0, 100]}
+                    ticks={[0, 25, 50, 75, 100]}
+                    tickFormatter={(v: number) => `${v}%`}
+                    label={{ value: 'Cloud Cover', angle: 90, position: 'insideRight', style: { textAnchor: 'middle' } }}
+                  />
                   <Tooltip />
                   <Legend />
                   <Bar yAxisId="left" dataKey="lightning_count" fill="#f59e0b" name="Lightning count" />
@@ -214,7 +249,7 @@ function App() {
                     name="Cloud mean %"
                     dot={false}
                   />
-                </BarChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           )}
@@ -225,11 +260,20 @@ function App() {
                 <p className="warn">No month-level values for the selected year at this location.</p>
               )}
               <ResponsiveContainer width="100%" height={330}>
-                <LineChart data={monthlyData}>
+                <ComposedChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="monthLabel" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
+                  <YAxis
+                    yAxisId="left"
+                    allowDecimals={false}
+                    label={{ value: 'Count / Cloud %', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tickFormatter={(v: number) => `${v}%`}
+                    label={{ value: 'Lightning Prob.', angle: 90, position: 'insideRight', style: { textAnchor: 'middle' } }}
+                  />
                   <Tooltip />
                   <Legend />
                   <Bar yAxisId="left" dataKey="lightning_count" fill="#f59e0b" name="Lightning count" />
@@ -247,7 +291,7 @@ function App() {
                     stroke="#7c3aed"
                     name="Lightning probability %"
                   />
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           )}
@@ -255,11 +299,20 @@ function App() {
           {tab === 'year' && (
             <div className="chart-wrap">
               <ResponsiveContainer width="100%" height={330}>
-                <LineChart data={yearlyData}>
+                <ComposedChart data={yearlyData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="year" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
+                  <YAxis
+                    yAxisId="left"
+                    allowDecimals={false}
+                    label={{ value: 'Count / Cloud %', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tickFormatter={(v: number) => `${v}%`}
+                    label={{ value: 'Lightning Prob.', angle: 90, position: 'insideRight', style: { textAnchor: 'middle' } }}
+                  />
                   <Tooltip />
                   <Legend />
                   <Bar yAxisId="left" dataKey="lightning_count" fill="#f59e0b" name="Lightning count" />
@@ -277,7 +330,7 @@ function App() {
                     stroke="#7c3aed"
                     name="Lightning probability %"
                   />
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           )}
