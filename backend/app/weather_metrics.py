@@ -56,6 +56,25 @@ class Station:
     active: bool
 
 
+def _find_nearest(
+    candidates: list[Station], lat: float, lon: float
+) -> tuple[Station, float] | None:
+    if not candidates:
+        return None
+
+    winner: Station | None = None
+    winner_distance = float("inf")
+    for station in candidates:
+        distance = haversine_km(lat, lon, station.lat, station.lon)
+        if distance < winner_distance:
+            winner = station
+            winner_distance = distance
+
+    if winner is None:
+        return None
+    return winner, winner_distance
+
+
 class MetricsStore:
     def __init__(
         self,
@@ -120,46 +139,18 @@ class MetricsStore:
         return min_lat <= lat <= max_lat and min_lon <= lon <= max_lon
 
     def nearest_station(self, lat: float, lon: float) -> tuple[Station, float] | None:
-        if not self.stations:
-            return None
-
-        winner: Station | None = None
-        winner_distance = float("inf")
-        for station in self.stations:
-            distance = haversine_km(lat, lon, station.lat, station.lon)
-            if distance < winner_distance:
-                winner = station
-                winner_distance = distance
-
-        if winner is None:
-            return None
-        return winner, winner_distance
+        return _find_nearest(self.stations, lat, lon)
 
     def nearest_station_with_cloud_data(
         self, lat: float, lon: float, *, year: int, month: int
     ) -> tuple[Station, float] | None:
-        candidates = []
-        for station in self.stations:
-            if (station.station_id, year, month) in self.cloud_monthly or (
-                station.station_id,
-                year,
-            ) in self.cloud_yearly:
-                candidates.append(station)
-
-        if not candidates:
-            return None
-
-        winner: Station | None = None
-        winner_distance = float("inf")
-        for station in candidates:
-            distance = haversine_km(lat, lon, station.lat, station.lon)
-            if distance < winner_distance:
-                winner = station
-                winner_distance = distance
-
-        if winner is None:
-            return None
-        return winner, winner_distance
+        candidates = [
+            station
+            for station in self.stations
+            if (station.station_id, year, month) in self.cloud_monthly
+            or (station.station_id, year) in self.cloud_yearly
+        ]
+        return _find_nearest(candidates, lat, lon)
 
     def nearest_station_with_any_cloud_data(
         self, lat: float, lon: float
@@ -169,20 +160,7 @@ class MetricsStore:
             for station in self.stations
             if station.station_id in self.stations_with_any_cloud_data
         ]
-        if not candidates:
-            return None
-
-        winner: Station | None = None
-        winner_distance = float("inf")
-        for station in candidates:
-            distance = haversine_km(lat, lon, station.lat, station.lon)
-            if distance < winner_distance:
-                winner = station
-                winner_distance = distance
-
-        if winner is None:
-            return None
-        return winner, winner_distance
+        return _find_nearest(candidates, lat, lon)
 
     def query(self, *, lat: float, lon: float, year: int, month: int) -> PointMetricsResponse:
         h3_cell = latlng_to_h3_cell(lat, lon, self.h3_resolution)
