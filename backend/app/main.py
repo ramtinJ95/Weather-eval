@@ -1,7 +1,8 @@
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware import Middleware
@@ -9,7 +10,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import read_hello_message
-from app.schemas import HelloResponse
+from app.schemas import HelloResponse, PointMetricsRequest, PointMetricsResponse
+from app.weather_metrics import MetricsStore
 
 app = FastAPI(
     title=settings.app_name,
@@ -34,6 +36,33 @@ def health() -> dict[str, str]:
 def hello() -> HelloResponse:
     message, source = read_hello_message()
     return HelloResponse(message=message, source=source)
+
+
+@lru_cache
+def get_metrics_store() -> MetricsStore:
+    return MetricsStore.from_processed_dir(
+        settings.processed_data_dir,
+        start_year=settings.weather_start_year,
+        h3_resolution=settings.weather_h3_resolution,
+        bounds=(
+            settings.sweden_min_lat,
+            settings.sweden_max_lat,
+            settings.sweden_min_lon,
+            settings.sweden_max_lon,
+        ),
+    )
+
+
+@app.post("/api/metrics/point", response_model=PointMetricsResponse)
+def metrics_for_point(payload: PointMetricsRequest) -> PointMetricsResponse:
+    store = get_metrics_store()
+    if not store.is_point_in_bounds(payload.lat, payload.lon):
+        raise HTTPException(
+            status_code=400,
+            detail="Selected point is outside Sweden bounds for this phase.",
+        )
+
+    return store.query(lat=payload.lat, lon=payload.lon, year=payload.year, month=payload.month)
 
 
 frontend_dist = Path(__file__).resolve().parents[2] / "frontend_dist"

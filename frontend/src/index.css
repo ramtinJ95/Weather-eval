@@ -14,11 +14,76 @@ body {
   margin: 0;
 }
 
-main {
-  max-width: 700px;
-  margin: 64px auto;
-  padding: 24px;
-  background: white;
+.app-shell {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 0 16px 32px;
+}
+
+.card {
+  background: #fff;
   border-radius: 10px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.map-wrap {
+  height: 360px;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 12px 0;
+  border: 1px solid #e5e7eb;
+}
+
+.controls-row {
+  display: flex;
+  gap: 16px;
+}
+
+.controls-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+select {
+  min-width: 120px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.hint {
+  color: #374151;
+}
+
+.error {
+  color: crimson;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tabs button {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tabs button.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.chart-wrap {
+  width: 100%;
+  min-height: 340px;
 }

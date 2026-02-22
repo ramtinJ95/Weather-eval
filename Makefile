@@ -1,4 +1,4 @@
-.PHONY: backend-dev frontend-dev test lint docker-build
+.PHONY: backend-dev frontend-dev test lint docker-build pipeline
 
 backend-dev:
 	cd backend && uv sync --dev && uv run uvicorn app.main:app --reload --port 8000
@@ -15,3 +15,6 @@ lint:
 
 docker-build:
 	docker build -t weather-eval:local .
+
+pipeline:
+	cd backend && uv sync --dev && uv run python scripts/run_pipeline.py --start-year 2021 --end-year 2026

@@ -1,33 +1,259 @@
-import { useEffect, useState } from 'react'
-import { fetchHello, type HelloResponse } from './api'
+import { useEffect, useMemo, useState } from 'react'
+import { CircleMarker, MapContainer, TileLayer, useMapEvents } from 'react-leaflet'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { fetchPointMetrics, type PointMetricsResponse } from './api'
+
+type MapPoint = { lat: number; lon: number }
+type TabKey = 'day' | 'month' | 'year'
+
+const START_YEAR = 2021
+const END_YEAR = Math.max(START_YEAR, new Date().getFullYear())
+
+function MapClickHandler({ onPick }: { onPick: (point: MapPoint) => void }) {
+  useMapEvents({
+    click: (event) => {
+      onPick({ lat: event.latlng.lat, lon: event.latlng.lng })
+    },
+  })
+
+  return null
+}
+
+function monthName(month: number): string {
+  return new Date(Date.UTC(2024, month - 1, 1)).toLocaleString(undefined, {
+    month: 'short',
+  })
+}
 
 function App() {
-  const [data, setData] = useState<HelloResponse | null>(null)
+  const [selectedPoint, setSelectedPoint] = useState<MapPoint | null>(null)
+  const [selectedYear, setSelectedYear] = useState<number>(END_YEAR)
+  const [selectedMonth, setSelectedMonth] = useState<number>(Math.min(12, new Date().getMonth() + 1))
+  const [tab, setTab] = useState<TabKey>('day')
+  const [data, setData] = useState<PointMetricsResponse | null>(null)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchHello()
+    if (!selectedPoint) {
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    fetchPointMetrics({
+      lat: selectedPoint.lat,
+      lon: selectedPoint.lon,
+      year: selectedYear,
+      month: selectedMonth,
+    })
       .then(setData)
       .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [selectedPoint, selectedYear, selectedMonth])
+
+  const yearOptions = useMemo(() => {
+    const years: number[] = []
+    for (let year = START_YEAR; year <= END_YEAR; year += 1) {
+      years.push(year)
+    }
+    return years
   }, [])
 
+  const dailyData = data?.daily.days ?? []
+  const monthlyData =
+    data?.monthly.months.map((item) => ({
+      ...item,
+      monthLabel: monthName(item.month),
+      lightning_probability_pct: Number((item.lightning_probability * 100).toFixed(2)),
+    })) ?? []
+  const yearlyData =
+    data?.yearly.years.map((item) => ({
+      ...item,
+      lightning_probability_pct: Number((item.lightning_probability * 100).toFixed(2)),
+    })) ?? []
+
   return (
-    <main>
-      <h1>weather-eval</h1>
-      <p>Frontend + Backend + Firebase wiring check:</p>
+    <main className="app-shell">
+      <h1>weather-eval · phase 1</h1>
 
-      {error && <p style={{ color: 'crimson' }}>Error: {error}</p>}
+      <section className="card">
+        <h2>Select point (map click)</h2>
+        <p>Click anywhere in Sweden to fetch cloud + lightning metrics.</p>
 
-      {!error && !data && <p>Loading...</p>}
+        <div className="map-wrap">
+          <MapContainer center={[62.0, 15.0]} zoom={5} scrollWheelZoom style={{ height: '100%' }}>
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <MapClickHandler onPick={setSelectedPoint} />
+            {selectedPoint && (
+              <CircleMarker
+                center={[selectedPoint.lat, selectedPoint.lon]}
+                radius={8}
+                pathOptions={{ color: '#1d4ed8', fillColor: '#1d4ed8', fillOpacity: 0.75 }}
+              />
+            )}
+          </MapContainer>
+        </div>
+
+        <div className="controls-row">
+          <label>
+            Year
+            <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
+              {yearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Month
+            <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
+              {Array.from({ length: 12 }).map((_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {monthName(i + 1)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {!selectedPoint && <p className="hint">Pick a location to load data.</p>}
+
+        {selectedPoint && (
+          <p className="hint">
+            Selected point: <strong>{selectedPoint.lat.toFixed(5)}</strong>,{' '}
+            <strong>{selectedPoint.lon.toFixed(5)}</strong>
+          </p>
+        )}
+
+        {loading && <p>Loading metrics...</p>}
+        {error && <p className="error">{error}</p>}
+
+        {data?.cloud_station && (
+          <p className="hint">
+            Nearest cloud station: <strong>{data.cloud_station.name}</strong> (#{' '}
+            {data.cloud_station.station_id}, {data.cloud_station.distance_km} km)
+          </p>
+        )}
+      </section>
 
       {data && (
-        <section>
-          <p>
-            <strong>Message:</strong> {data.message}
-          </p>
-          <p>
-            <strong>Source:</strong> {data.source}
-          </p>
+        <section className="card">
+          <h2>Metrics</h2>
+
+          <div className="tabs">
+            {(['day', 'month', 'year'] as const).map((key) => (
+              <button
+                key={key}
+                className={tab === key ? 'active' : ''}
+                onClick={() => setTab(key)}
+                type="button"
+              >
+                {key.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'day' && (
+            <div className="chart-wrap">
+              <ResponsiveContainer width="100%" height={330}>
+                <BarChart data={dailyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} minTickGap={16} />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" />
+                  <Tooltip />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="lightning_count" fill="#f59e0b" name="Lightning count" />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="cloud_mean_pct"
+                    stroke="#2563eb"
+                    name="Cloud mean %"
+                    dot={false}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {tab === 'month' && (
+            <div className="chart-wrap">
+              <ResponsiveContainer width="100%" height={330}>
+                <LineChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="monthLabel" />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" />
+                  <Tooltip />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="lightning_count" fill="#f59e0b" name="Lightning count" />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="cloud_mean_pct"
+                    stroke="#2563eb"
+                    name="Cloud mean %"
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="lightning_probability_pct"
+                    stroke="#7c3aed"
+                    name="Lightning probability %"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {tab === 'year' && (
+            <div className="chart-wrap">
+              <ResponsiveContainer width="100%" height={330}>
+                <LineChart data={yearlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="year" />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" />
+                  <Tooltip />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="lightning_count" fill="#f59e0b" name="Lightning count" />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="cloud_mean_pct"
+                    stroke="#2563eb"
+                    name="Cloud mean %"
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="lightning_probability_pct"
+                    stroke="#7c3aed"
+                    name="Lightning probability %"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </section>
       )}
     </main>
