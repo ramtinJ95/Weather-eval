@@ -12,7 +12,7 @@ LIGHTNING_ROOT_URL = "https://opendata-download-lightning.smhi.se/api/version/la
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Download SMHI lightning daily CSV files")
-    parser.add_argument("--start-year", type=int, default=2021)
+    parser.add_argument("--start-year", type=int, default=2023)
     parser.add_argument("--end-year", type=int, default=datetime.now(tz=UTC).year)
     parser.add_argument(
         "--output-dir",

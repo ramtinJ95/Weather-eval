@@ -28,7 +28,7 @@ cd frontend && npm run lint
 
 ### Data Pipeline
 ```bash
-make pipeline          # Full pipeline (2021-2026, takes a while on first run)
+make pipeline          # Full pipeline (2023-2026, takes a while on first run)
 make pipeline-smoke    # Quick subset (2026 only, 5 lightning days, 10 cloud stations)
 ```
 

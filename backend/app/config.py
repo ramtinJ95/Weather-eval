@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     weather_data_dir: Path = Path(__file__).resolve().parents[1] / "data"
     processed_data_dir: Path = Path(__file__).resolve().parents[1] / "data" / "processed"
-    weather_start_year: int = 2021
+    weather_start_year: int = 2023
     weather_h3_resolution: int = 7
 
     sweden_min_lat: float = 55.0

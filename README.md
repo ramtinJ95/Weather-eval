@@ -30,7 +30,7 @@ Then open: http://localhost:5173
 
 ## Data pipeline commands
 
-Full dataset (2021–2026):
+Full dataset (2023–2026):
 
 ```bash
 make pipeline
@@ -48,7 +48,7 @@ Validate aggregate consistency:
 make validate-aggregates
 ```
 
-Fetch only lightning (2021–2026):
+Fetch only lightning (2023–2026):
 
 ```bash
 make fetch-lightning
@@ -71,7 +71,7 @@ scripts/upload_processed_to_gcs.sh <your-processed-data-bucket>
 ```bash
 cd backend
 uv sync --dev
-uv run python scripts/run_pipeline.py --start-year 2021 --end-year 2026
+uv run python scripts/run_pipeline.py --start-year 2023 --end-year 2026
 ```
 
 Quick smoke test (small subset):
@@ -145,7 +145,7 @@ Notes:
   `corrected-archive` remains preferred when both provide the same timestamp.
 
 #### Lightning (SMHI lightning archive)
-- Source: daily CSV files (2021–2026)
+- Source: daily CSV files (2023–2026)
 - Each row is one lightning event with timestamp + lat/lon.
 
 #### Cloud cover (SMHI metobs parameter 16)
@@ -196,7 +196,7 @@ Cloud is station-based (not H3).
 #### 4.1 Data quality filtering
 - Keep only rows with quality code `G` or `Y`.
 - Ignore missing/non-numeric values.
-- Filter to date >= `2021-01-01`.
+- Filter to date >= `2023-01-01`.
 
 #### 4.2 Merge corrected + latest-months
 For each station and timestamp `(date,time)`:
@@ -226,7 +226,7 @@ Given `(lat, lon, year, month)`:
 4. Build response:
    - daily series for selected month
    - monthly series for selected year
-   - yearly series from 2021 to selected/current year
+   - yearly series from 2023 to selected/current year
 
 ### 6) Why day/month can be empty while yearly has values
 
