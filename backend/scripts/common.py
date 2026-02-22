@@ -12,11 +12,17 @@ def ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
-def request_json(session: requests.Session, url: str, *, retries: int = 3) -> dict[str, Any]:
+def request_json(
+    session: requests.Session,
+    url: str,
+    *,
+    retries: int = 3,
+    timeout_seconds: int = 60,
+) -> dict[str, Any]:
     error: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
-            response = session.get(url, timeout=60)
+            response = session.get(url, timeout=timeout_seconds)
             response.raise_for_status()
             payload = response.json()
             if not isinstance(payload, dict):
@@ -31,11 +37,17 @@ def request_json(session: requests.Session, url: str, *, retries: int = 3) -> di
     raise error
 
 
-def download_text(session: requests.Session, url: str, *, retries: int = 3) -> str:
+def download_text(
+    session: requests.Session,
+    url: str,
+    *,
+    retries: int = 3,
+    timeout_seconds: int = 120,
+) -> str:
     error: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
-            response = session.get(url, timeout=120)
+            response = session.get(url, timeout=timeout_seconds)
             response.raise_for_status()
             response.encoding = "utf-8"
             return response.text

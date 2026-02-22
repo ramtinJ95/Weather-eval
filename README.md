@@ -1,11 +1,14 @@
 # weather-eval
 
-Monorepo starter for:
+Monorepo for:
 - React + TypeScript frontend (`frontend/`)
 - FastAPI backend (`backend/`)
 - single Docker image serving both
 - Terraform on GCP (`infra/`)
 - GitHub Actions CI/CD (`.github/workflows/`)
+
+This project now includes a **Phase 1 local-first weather analytics pipeline**
+for Sweden using SMHI lightning + cloud-cover observations.
 
 ## What works now
 
@@ -14,6 +17,42 @@ Monorepo starter for:
 - `/api/metrics/point` returns cloud/lightning metrics for a selected lat/lon
 - frontend includes a map-click workflow + day/month/year charts
 - Docker image builds frontend and serves it from FastAPI
+
+## Fast start (recommended)
+
+Start backend + frontend with one command:
+
+```bash
+make run
+```
+
+Then open: http://localhost:5173
+
+## Data pipeline commands
+
+Full dataset (2021–2026):
+
+```bash
+make pipeline
+```
+
+Smoke test subset:
+
+```bash
+make pipeline-smoke
+```
+
+Validate aggregate consistency:
+
+```bash
+make validate-aggregates
+```
+
+Fetch only lightning (2021–2026):
+
+```bash
+make fetch-lightning
+```
 
 ## Phase 1 weather data pipeline (local-first)
 
@@ -36,7 +75,120 @@ uv run python scripts/run_pipeline.py \
 The pipeline downloads raw SMHI data and writes local aggregates used by
 `POST /api/metrics/point`.
 
-> Note: first-time download can take a while because it fetches many files.
+> Note: first-time run downloads many files and can take time.
+
+---
+
+## Methodology: calculations and measurements
+
+This section describes exactly how metrics are calculated.
+
+### 1) Input datasets
+
+#### Lightning (SMHI lightning archive)
+- Source: daily CSV files (2021–2026)
+- Each row is one lightning event with timestamp + lat/lon.
+
+#### Cloud cover (SMHI metobs parameter 16)
+- Parameter 16 = total cloud amount (%).
+- Two station feeds are merged:
+  1. `corrected-archive` (historical baseline)
+  2. `latest-months` (recent updates, includes 2026 coverage)
+
+### 2) Spatial model (H3 resolution 7)
+
+For lightning, every strike point `(lat, lon)` is transformed into one
+**H3 cell ID at resolution 7**.
+
+Why:
+- Gives stable, indexed spatial buckets.
+- Enables fast point lookup by mapping selected point to the same H3 cell.
+
+How:
+- Backend uses `h3.latlng_to_cell(lat, lon, 7)`.
+- That cell ID is the key for all lightning day/month/year aggregates.
+
+### 3) Lightning metrics formulas
+
+For each H3 r7 cell:
+
+- **Daily strike count**
+  - `strike_count(day) = number of lightning rows in that cell on that date`
+
+- **Monthly strike count**
+  - `strike_count(month) = sum of daily strike_count for month`
+
+- **Monthly days_with_strike**
+  - count of days in month where `daily strike_count > 0`
+
+- **Monthly lightning_probability**
+  - `days_with_strike / days_in_month`
+
+- **Yearly strike count**
+  - `sum of daily strike_count over year`
+
+- **Yearly lightning_probability**
+  - `days_with_strike_in_year / days_in_year`
+
+### 4) Cloud metrics formulas
+
+Cloud is station-based (not H3).
+
+#### 4.1 Data quality filtering
+- Keep only rows with quality code `G` or `Y`.
+- Ignore missing/non-numeric values.
+- Filter to date >= `2021-01-01`.
+
+#### 4.2 Merge corrected + latest-months
+For each station and timestamp `(date,time)`:
+- Prefer `corrected-archive` value over `latest-months` value.
+- If same source priority, prefer quality `G` over `Y`.
+
+This avoids duplicates while allowing 2026 recency.
+
+#### 4.3 Aggregation
+For each station:
+- **Daily cloud mean %** = arithmetic mean of hourly values that day.
+- **Monthly cloud mean %** = weighted mean over all daily samples.
+- **Yearly cloud mean %** = weighted mean over all daily samples.
+
+`n_samples` is preserved at each level for traceability.
+
+### 5) Point query logic (`POST /api/metrics/point`)
+
+Given `(lat, lon, year, month)`:
+
+1. Validate point is inside Sweden bounds (phase-1 safety bound).
+2. Convert point to H3 r7 cell.
+3. Select nearest cloud station with priority:
+   - nearest station with cloud data for selected year/month
+   - else nearest station with any cloud data in aggregates
+   - else nearest station overall
+4. Build response:
+   - daily series for selected month
+   - monthly series for selected year
+   - yearly series from 2021 to selected/current year
+
+### 6) Why day/month can be empty while yearly has values
+
+This is expected when:
+- selected month has no events in that H3 cell, or
+- selected year/month has no cloud samples for nearby stations,
+while prior years still contain data.
+
+The UI now shows warnings for these cases.
+
+### 7) Aggregate validation
+
+`scripts/validate_aggregates.py` checks:
+- lightning daily -> monthly/yearly consistency (exact)
+- cloud daily -> monthly/yearly consistency (within tolerance)
+
+Run:
+
+```bash
+make validate-aggregates
+```
 
 ## Local run (split dev mode)
 

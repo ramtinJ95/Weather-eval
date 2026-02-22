@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -10,10 +11,31 @@ from typing import Any
 from common import ensure_parent, write_json
 
 
+@dataclass(frozen=True)
+class CloudObservation:
+    station_id: str
+    date_str: str
+    time_str: str
+    value: float
+    quality: str
+    source_priority: int
+
+
 def parse_args() -> argparse.Namespace:
     base_dir = Path(__file__).resolve().parents[1] / "data"
-    parser = argparse.ArgumentParser(description="Build cloud station aggregates from CSV archives")
-    parser.add_argument("--input-dir", type=Path, default=base_dir / "raw" / "cloud" / "station")
+    parser = argparse.ArgumentParser(
+        description="Build cloud station aggregates from corrected + latest-months CSV archives"
+    )
+    parser.add_argument(
+        "--corrected-dir",
+        type=Path,
+        default=base_dir / "raw" / "cloud" / "station",
+    )
+    parser.add_argument(
+        "--latest-months-dir",
+        type=Path,
+        default=base_dir / "raw" / "cloud" / "station_latest_months",
+    )
     parser.add_argument("--output-dir", type=Path, default=base_dir / "processed")
     parser.add_argument("--start-date", type=str, default="2021-01-01")
     return parser.parse_args()
@@ -36,6 +58,86 @@ def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
+def _quality_rank(quality: str) -> int:
+    if quality == "G":
+        return 2
+    if quality == "Y":
+        return 1
+    return 0
+
+
+def _parse_station_csv(
+    path: Path,
+    *,
+    station_id: str,
+    start_date: date,
+    source_priority: int,
+) -> dict[tuple[str, str], CloudObservation]:
+    observations: dict[tuple[str, str], CloudObservation] = {}
+
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    header_index = -1
+    for idx, line in enumerate(lines):
+        if line.lstrip("\ufeff").startswith("Datum;Tid (UTC);"):
+            header_index = idx
+            break
+
+    if header_index < 0:
+        return observations
+
+    for line in lines[header_index + 1 :]:
+        if not line.strip():
+            continue
+
+        columns = line.split(";")
+        if len(columns) < 4:
+            continue
+
+        date_str = columns[0].strip()
+        time_str = columns[1].strip()
+        value_str = columns[2].strip()
+        quality = columns[3].strip().upper()
+
+        if quality not in {"G", "Y"}:
+            continue
+
+        value = _to_float(value_str)
+        if value is None:
+            continue
+
+        try:
+            day_date = date.fromisoformat(date_str)
+        except ValueError:
+            continue
+        if day_date < start_date:
+            continue
+
+        key = (date_str, time_str)
+        candidate = CloudObservation(
+            station_id=station_id,
+            date_str=date_str,
+            time_str=time_str,
+            value=value,
+            quality=quality,
+            source_priority=source_priority,
+        )
+
+        current = observations.get(key)
+        if current is None:
+            observations[key] = candidate
+            continue
+
+        if candidate.source_priority > current.source_priority:
+            observations[key] = candidate
+            continue
+        if candidate.source_priority == current.source_priority and _quality_rank(
+            candidate.quality
+        ) > _quality_rank(current.quality):
+            observations[key] = candidate
+
+    return observations
+
+
 def main() -> None:
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -51,57 +153,56 @@ def main() -> None:
     yearly_sums: dict[tuple[str, int], float] = defaultdict(float)
     yearly_counts: dict[tuple[str, int], int] = defaultdict(int)
 
-    for station_csv in sorted(args.input_dir.glob("*.csv")):
-        station_id = station_csv.stem
-        lines = station_csv.read_text(encoding="utf-8", errors="replace").splitlines()
+    station_ids = {path.stem for path in args.corrected_dir.glob("*.csv")} | {
+        path.stem for path in args.latest_months_dir.glob("*.csv")
+    }
 
-        header_index = -1
-        for idx, line in enumerate(lines):
-            if line.lstrip("\ufeff").startswith("Datum;Tid (UTC);"):
-                header_index = idx
-                break
+    for station_id in sorted(station_ids):
+        merged_observations: dict[tuple[str, str], CloudObservation] = {}
 
-        if header_index < 0:
-            continue
+        corrected_path = args.corrected_dir / f"{station_id}.csv"
+        if corrected_path.exists():
+            corrected_obs = _parse_station_csv(
+                corrected_path,
+                station_id=station_id,
+                start_date=start_date,
+                source_priority=2,
+            )
+            merged_observations.update(corrected_obs)
 
-        for line in lines[header_index + 1 :]:
-            if not line.strip():
-                continue
+        latest_months_path = args.latest_months_dir / f"{station_id}.csv"
+        if latest_months_path.exists():
+            latest_obs = _parse_station_csv(
+                latest_months_path,
+                station_id=station_id,
+                start_date=start_date,
+                source_priority=1,
+            )
+            for key, value in latest_obs.items():
+                current = merged_observations.get(key)
+                should_replace = (
+                    current is None
+                    or value.source_priority > current.source_priority
+                    or (
+                        value.source_priority == current.source_priority
+                        and _quality_rank(value.quality) > _quality_rank(current.quality)
+                    )
+                )
+                if should_replace:
+                    merged_observations[key] = value
 
-            columns = line.split(";")
-            if len(columns) < 4:
-                continue
-
-            date_str = columns[0].strip()
-            value_str = columns[2].strip()
-            quality = columns[3].strip().upper()
-
-            if quality not in {"G", "Y"}:
-                continue
-
-            value = _to_float(value_str)
-            if value is None:
-                continue
-
-            try:
-                day_date = date.fromisoformat(date_str)
-            except ValueError:
-                continue
-            if day_date < start_date:
-                continue
-
+        for observation in merged_observations.values():
+            day_date = date.fromisoformat(observation.date_str)
             day_key = day_date.isoformat()
-            month_key = (day_date.year, day_date.month)
-            year_key = day_date.year
 
-            daily_sums[(station_id, day_key)] += value
+            daily_sums[(station_id, day_key)] += observation.value
             daily_counts[(station_id, day_key)] += 1
 
-            monthly_sums[(station_id, month_key[0], month_key[1])] += value
-            monthly_counts[(station_id, month_key[0], month_key[1])] += 1
+            monthly_sums[(station_id, day_date.year, day_date.month)] += observation.value
+            monthly_counts[(station_id, day_date.year, day_date.month)] += 1
 
-            yearly_sums[(station_id, year_key)] += value
-            yearly_counts[(station_id, year_key)] += 1
+            yearly_sums[(station_id, day_date.year)] += observation.value
+            yearly_counts[(station_id, day_date.year)] += 1
 
     daily_rows: list[dict[str, Any]] = []
     for (station_id, date_str), value_sum in sorted(daily_sums.items()):
