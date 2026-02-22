@@ -3,14 +3,12 @@ from __future__ import annotations
 import argparse
 import calendar
 import csv
-import json
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
 from typing import Any
 
-import h3
-from common import ensure_parent, write_json
+from common import as_float, as_int, latlng_to_h3_cell, write_json, write_jsonl
 
 
 def parse_args() -> argparse.Namespace:
@@ -23,42 +21,12 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def latlng_to_h3_cell(lat: float, lon: float, resolution: int) -> str:
-    if hasattr(h3, "latlng_to_cell"):
-        return str(h3.latlng_to_cell(lat, lon, resolution))
-    if hasattr(h3, "geo_to_h3"):
-        return str(h3.geo_to_h3(lat, lon, resolution))
-    msg = "Unsupported h3 package version"
-    raise RuntimeError(msg)
-
-
-def _as_int(value: Any) -> int | None:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _as_float(value: Any) -> float | None:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _iter_rows(csv_path: Path):
     with csv_path.open("r", encoding="utf-8") as handle:
         reader = csv.DictReader(handle, delimiter=";")
         for row in reader:
             if row:
                 yield row
-
-
-def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
-    ensure_parent(path)
-    with path.open("w", encoding="utf-8") as handle:
-        for row in rows:
-            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
 def main() -> None:
@@ -72,11 +40,11 @@ def main() -> None:
     csv_files = sorted(args.input_dir.glob("*/*/*.csv"))
     for csv_file in csv_files:
         for row in _iter_rows(csv_file):
-            year = _as_int(row.get("year"))
-            month = _as_int(row.get("month"))
-            day = _as_int(row.get("day"))
-            lat = _as_float(row.get("lat"))
-            lon = _as_float(row.get("lon"))
+            year = as_int(row.get("year"))
+            month = as_int(row.get("month"))
+            day = as_int(row.get("day"))
+            lat = as_float(row.get("lat"))
+            lon = as_float(row.get("lon"))
 
             if year is None or month is None or day is None or lat is None or lon is None:
                 continue
@@ -134,7 +102,7 @@ def main() -> None:
             }
         )
 
-    _write_jsonl(args.output_dir / "lightning_h3_r7_daily.jsonl", daily_rows)
+    write_jsonl(args.output_dir / "lightning_h3_r7_daily.jsonl", daily_rows)
     write_json(args.output_dir / "lightning_h3_r7_monthly.json", monthly_rows)
     write_json(args.output_dir / "lightning_h3_r7_yearly.json", yearly_rows)
 

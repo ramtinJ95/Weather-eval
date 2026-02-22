@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from common import write_json
+from common import as_float, as_int, write_json
 
 
 def parse_args() -> argparse.Namespace:
@@ -23,20 +23,6 @@ def parse_args() -> argparse.Namespace:
         default=base_dir / "processed" / "station_index.json",
     )
     return parser.parse_args()
-
-
-def _as_float(value: Any) -> float | None:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _as_int(value: Any) -> int | None:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def main() -> None:
@@ -59,10 +45,10 @@ def main() -> None:
 
         station_id = str(station.get("id", "")).strip()
         name = str(station.get("name", "")).strip()
-        lat = _as_float(station.get("latitude"))
-        lon = _as_float(station.get("longitude"))
-        from_ts = _as_int(station.get("from"))
-        to_ts = _as_int(station.get("to"))
+        lat = as_float(station.get("latitude"))
+        lon = as_float(station.get("longitude"))
+        from_ts = as_int(station.get("from"))
+        to_ts = as_int(station.get("to"))
 
         if not station_id or not name or lat is None or lon is None:
             continue
