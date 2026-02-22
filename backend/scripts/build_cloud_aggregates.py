@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import argparse
-import json
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Any
 
-from common import ensure_parent, write_json
+from common import write_json, write_jsonl
 
 
 @dataclass(frozen=True)
@@ -49,13 +48,6 @@ def _to_float(value: str) -> float | None:
         return float(cleaned)
     except ValueError:
         return None
-
-
-def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
-    ensure_parent(path)
-    with path.open("w", encoding="utf-8") as handle:
-        for row in rows:
-            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
 def _quality_rank(quality: str) -> int:
@@ -245,7 +237,7 @@ def main() -> None:
             }
         )
 
-    _write_jsonl(args.output_dir / "cloud_station_daily.jsonl", daily_rows)
+    write_jsonl(args.output_dir / "cloud_station_daily.jsonl", daily_rows)
     write_json(args.output_dir / "cloud_station_monthly.json", monthly_rows)
     write_json(args.output_dir / "cloud_station_yearly.json", yearly_rows)
 
