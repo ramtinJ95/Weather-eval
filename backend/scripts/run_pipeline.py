@@ -8,7 +8,7 @@ from pathlib import Path
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run full phase-1 data pipeline")
-    parser.add_argument("--start-year", type=int, default=2021)
+    parser.add_argument("--start-year", type=int, default=2023)
     parser.add_argument("--end-year", type=int, default=2026)
     parser.add_argument(
         "--skip-fetch",

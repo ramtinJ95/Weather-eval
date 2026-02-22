@@ -13,7 +13,7 @@ class HelloResponse(BaseModel):
 class PointMetricsRequest(BaseModel):
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
-    year: int = Field(ge=2021, le=2100)
+    year: int = Field(ge=2023, le=2100)
     month: int = Field(ge=1, le=12)
 
 

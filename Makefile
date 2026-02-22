@@ -25,16 +25,16 @@ docker-build:
 	docker build -t weather-eval:local .
 
 pipeline:
-	cd backend && uv sync --dev && uv run python scripts/run_pipeline.py --start-year 2021 --end-year 2026
+	cd backend && uv sync --dev && uv run python scripts/run_pipeline.py --start-year 2023 --end-year 2026
 
 pipeline-smoke:
 	cd backend && uv sync --dev && uv run python scripts/run_pipeline.py --start-year 2026 --end-year 2026 --max-lightning-days 5 --max-cloud-stations 10
 
 fetch-lightning:
-	cd backend && uv sync --dev && uv run python scripts/fetch_lightning_raw.py --start-year 2021 --end-year 2026
+	cd backend && uv sync --dev && uv run python scripts/fetch_lightning_raw.py --start-year 2023 --end-year 2026
 
 refresh-cloud:
-	cd backend && uv sync --dev && uv run python scripts/fetch_cloud_raw.py && uv run python scripts/build_cloud_aggregates.py --start-date 2021-01-01
+	cd backend && uv sync --dev && uv run python scripts/fetch_cloud_raw.py && uv run python scripts/build_cloud_aggregates.py --start-date 2023-01-01
 
 upload-processed:
 	@if [ -z "$$WEATHER_DATA_BUCKET" ]; then \

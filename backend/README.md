@@ -9,7 +9,7 @@ Run once to download raw data and build aggregates:
 ```bash
 cd backend
 uv sync --dev
-uv run python scripts/run_pipeline.py --start-year 2021 --end-year 2026
+uv run python scripts/run_pipeline.py --start-year 2023 --end-year 2026
 ```
 
 Cloud fetch now downloads both:
@@ -23,7 +23,7 @@ If raw files already exist and you only want to rebuild aggregates:
 
 ```bash
 cd backend
-uv run python scripts/run_pipeline.py --skip-fetch --start-year 2021 --end-year 2026
+uv run python scripts/run_pipeline.py --skip-fetch --start-year 2023 --end-year 2026
 ```
 
 Quick smoke-test run (small subset):
@@ -64,4 +64,4 @@ The endpoint returns:
 - nearest cloud station
 - daily metrics for selected month
 - monthly metrics for selected year
-- yearly metrics from 2021 up to selected year/current year
+- yearly metrics from 2023 up to selected year/current year

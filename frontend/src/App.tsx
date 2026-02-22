@@ -16,7 +16,7 @@ import { fetchPointMetrics, type PointMetricsResponse } from './api'
 type MapPoint = { lat: number; lon: number }
 type TabKey = 'day' | 'month' | 'year'
 
-const START_YEAR = 2021
+const START_YEAR = 2023
 const END_YEAR = Math.max(START_YEAR, new Date().getFullYear())
 
 const SWEDEN_BOUNDS: [[number, number], [number, number]] = [

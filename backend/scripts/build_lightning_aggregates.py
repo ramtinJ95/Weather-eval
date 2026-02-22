@@ -17,7 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input-dir", type=Path, default=base_dir / "raw" / "lightning")
     parser.add_argument("--output-dir", type=Path, default=base_dir / "processed")
     parser.add_argument("--resolution", type=int, default=7)
-    parser.add_argument("--start-year", type=int, default=2021)
+    parser.add_argument("--start-year", type=int, default=2023)
     return parser.parse_args()
 
 

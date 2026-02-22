@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
         default=base_dir / "raw" / "cloud" / "station_latest_months",
     )
     parser.add_argument("--output-dir", type=Path, default=base_dir / "processed")
-    parser.add_argument("--start-date", type=str, default="2021-01-01")
+    parser.add_argument("--start-date", type=str, default="2023-01-01")
     return parser.parse_args()
 
 
