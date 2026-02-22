@@ -39,7 +39,19 @@ variable "cloud_run_max_instances" {
 
 variable "cloud_run_memory" {
   type    = string
-  default = "256Mi"
+  default = "2Gi"
+}
+
+variable "cloud_run_cpu" {
+  description = "CPU limit for Cloud Run container"
+  type        = string
+  default     = "1000m"
+}
+
+variable "cloud_run_concurrency" {
+  description = "Max concurrent requests per Cloud Run instance"
+  type        = number
+  default     = 1
 }
 
 variable "image" {

@@ -78,7 +78,8 @@ resource "google_cloud_run_v2_service" "app" {
   location = var.region
 
   template {
-    service_account = google_service_account.cloud_run.email
+    service_account                  = google_service_account.cloud_run.email
+    max_instance_request_concurrency = var.cloud_run_concurrency
 
     scaling {
       min_instance_count = var.cloud_run_min_instances
@@ -94,6 +95,7 @@ resource "google_cloud_run_v2_service" "app" {
       resources {
         cpu_idle = true
         limits = {
+          cpu    = var.cloud_run_cpu
           memory = var.cloud_run_memory
         }
       }
