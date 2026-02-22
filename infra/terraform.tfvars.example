@@ -10,3 +10,4 @@ cloud_run_cpu                = "1000m"
 cloud_run_memory             = "2Gi"
 cloud_run_concurrency        = 1
 image                        = "us-central1-docker.pkg.dev/your-gcp-project-id/weather-eval/weather-eval:latest"
+github_actions_deployer_sa_email = "github-actions-deployer@your-gcp-project-id.iam.gserviceaccount.com"

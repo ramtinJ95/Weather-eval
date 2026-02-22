@@ -58,3 +58,9 @@ variable "image" {
   description = "Container image URI deployed to Cloud Run"
   type        = string
 }
+
+variable "github_actions_deployer_sa_email" {
+  description = "GitHub Actions deployer SA email. When set, Terraform grants deploy/runtime and processed-data read IAM."
+  type        = string
+  default     = null
+}
