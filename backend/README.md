@@ -12,6 +12,13 @@ uv sync --dev
 uv run python scripts/run_pipeline.py --start-year 2021 --end-year 2026
 ```
 
+Cloud fetch now downloads both:
+- `corrected-archive` (historical)
+- `latest-months` (recent values, used to include 2026)
+
+The cloud fetcher avoids unnecessary latest-months calls for stations whose
+metadata indicates old/inactive data, and prints progress while running.
+
 If raw files already exist and you only want to rebuild aggregates:
 
 ```bash
