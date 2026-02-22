@@ -1,4 +1,4 @@
-.PHONY: backend-dev frontend-dev run test lint docker-build pipeline pipeline-smoke fetch-lightning refresh-cloud validate-aggregates
+.PHONY: backend-dev frontend-dev run test lint docker-build pipeline pipeline-smoke fetch-lightning refresh-cloud upload-processed validate-aggregates
 
 backend-dev:
 	cd backend && uv sync --dev && uv run uvicorn app.main:app --reload --port 8000
@@ -35,6 +35,13 @@ fetch-lightning:
 
 refresh-cloud:
 	cd backend && uv sync --dev && uv run python scripts/fetch_cloud_raw.py && uv run python scripts/build_cloud_aggregates.py --start-date 2021-01-01
+
+upload-processed:
+	@if [ -z "$$WEATHER_DATA_BUCKET" ]; then \
+		echo "Set WEATHER_DATA_BUCKET first, e.g. WEATHER_DATA_BUCKET=my-bucket make upload-processed"; \
+		exit 1; \
+	fi
+	./scripts/upload_processed_to_gcs.sh $$WEATHER_DATA_BUCKET
 
 validate-aggregates:
 	cd backend && uv sync --dev && uv run python scripts/validate_aggregates.py

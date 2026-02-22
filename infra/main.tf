@@ -21,6 +21,7 @@ locals {
     "artifactregistry.googleapis.com",
     "firestore.googleapis.com",
     "run.googleapis.com",
+    "storage.googleapis.com",
   ])
 }
 
@@ -46,6 +47,16 @@ resource "google_artifact_registry_repository" "docker" {
   location      = var.region
   repository_id = var.artifact_registry_repository
   format        = "DOCKER"
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_storage_bucket" "processed_data" {
+  name                        = var.processed_data_bucket_name
+  location                    = var.region
+  storage_class               = "STANDARD"
+  force_destroy               = false
+  uniform_bucket_level_access = true
 
   depends_on = [google_project_service.required]
 }
@@ -115,4 +126,8 @@ output "cloud_run_url" {
 
 output "artifact_registry_repository" {
   value = google_artifact_registry_repository.docker.id
+}
+
+output "processed_data_bucket" {
+  value = google_storage_bucket.processed_data.name
 }

@@ -60,6 +60,12 @@ Refresh cloud data (corrected-archive + latest-months, then rebuild cloud aggreg
 make refresh-cloud
 ```
 
+Upload local processed artifacts to GCS (used by deploy workflow image build):
+
+```bash
+scripts/upload_processed_to_gcs.sh <your-processed-data-bucket>
+```
+
 ## Phase 1 weather data pipeline (local-first)
 
 ```bash
@@ -317,6 +323,7 @@ terraform apply \
 cd infra
 cp terraform.tfvars.example terraform.tfvars
 # edit terraform.tfvars
+# required: processed_data_bucket_name must be globally unique
 
 terraform init \
   -backend-config="bucket=<your-state-bucket>" \
@@ -327,10 +334,15 @@ terraform apply
 ## Required GitHub secrets for deploy workflow
 
 - `GCP_SA_KEY` (service account JSON key)
+
+## Required GitHub repository variables for deploy workflow
+
 - `GCP_PROJECT_ID`
 - `GCP_REGION`
 - `GAR_REPOSITORY`
 - `CLOUD_RUN_SERVICE`
+- `WEATHER_DATA_BUCKET` (Terraform `processed_data_bucket` output)
+- `WEATHER_DATA_PREFIX` (optional; defaults to `processed/current`)
 
 ## Deployment mode choices
 

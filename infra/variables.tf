@@ -17,6 +17,11 @@ variable "artifact_registry_repository" {
   default = "weather-eval"
 }
 
+variable "processed_data_bucket_name" {
+  description = "GCS bucket for processed weather artifacts used in Docker builds"
+  type        = string
+}
+
 variable "cloud_run_service_name" {
   type    = string
   default = "weather-eval"

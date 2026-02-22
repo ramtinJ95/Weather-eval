@@ -2,6 +2,7 @@ project_id                   = "your-gcp-project-id"
 region                       = "us-central1"
 firestore_location           = "us-central1"
 artifact_registry_repository = "weather-eval"
+processed_data_bucket_name   = "your-unique-weather-eval-data-bucket"
 cloud_run_service_name       = "weather-eval"
 cloud_run_min_instances      = 0
 cloud_run_max_instances      = 1
