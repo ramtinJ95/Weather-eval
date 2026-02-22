@@ -134,9 +134,37 @@ class MetricsStore:
             return None
         return winner, winner_distance
 
+    def nearest_station_with_cloud_data(
+        self, lat: float, lon: float, *, year: int, month: int
+    ) -> tuple[Station, float] | None:
+        candidates = []
+        for station in self.stations:
+            if (station.station_id, year, month) in self.cloud_monthly or (
+                station.station_id,
+                year,
+            ) in self.cloud_yearly:
+                candidates.append(station)
+
+        if not candidates:
+            return None
+
+        winner: Station | None = None
+        winner_distance = float("inf")
+        for station in candidates:
+            distance = haversine_km(lat, lon, station.lat, station.lon)
+            if distance < winner_distance:
+                winner = station
+                winner_distance = distance
+
+        if winner is None:
+            return None
+        return winner, winner_distance
+
     def query(self, *, lat: float, lon: float, year: int, month: int) -> PointMetricsResponse:
         h3_cell = latlng_to_h3_cell(lat, lon, self.h3_resolution)
-        station_match = self.nearest_station(lat, lon)
+        station_match = self.nearest_station_with_cloud_data(lat, lon, year=year, month=month)
+        if station_match is None:
+            station_match = self.nearest_station(lat, lon)
         station: Station | None = None
         station_info: CloudStationInfo | None = None
         if station_match is not None:
