@@ -54,6 +54,12 @@ Fetch only lightning (2021–2026):
 make fetch-lightning
 ```
 
+Refresh cloud data (corrected-archive + latest-months, then rebuild cloud aggregates):
+
+```bash
+make refresh-cloud
+```
+
 ## Phase 1 weather data pipeline (local-first)
 
 ```bash

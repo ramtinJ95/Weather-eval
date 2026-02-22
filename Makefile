@@ -1,4 +1,4 @@
-.PHONY: backend-dev frontend-dev run test lint docker-build pipeline pipeline-smoke fetch-lightning validate-aggregates
+.PHONY: backend-dev frontend-dev run test lint docker-build pipeline pipeline-smoke fetch-lightning refresh-cloud validate-aggregates
 
 backend-dev:
 	cd backend && uv sync --dev && uv run uvicorn app.main:app --reload --port 8000
@@ -32,6 +32,9 @@ pipeline-smoke:
 
 fetch-lightning:
 	cd backend && uv sync --dev && uv run python scripts/fetch_lightning_raw.py --start-year 2021 --end-year 2026
+
+refresh-cloud:
+	cd backend && uv sync --dev && uv run python scripts/fetch_cloud_raw.py && uv run python scripts/build_cloud_aggregates.py --start-date 2021-01-01
 
 validate-aggregates:
 	cd backend && uv sync --dev && uv run python scripts/validate_aggregates.py
