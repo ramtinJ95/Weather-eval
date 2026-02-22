@@ -26,7 +26,14 @@ backend/data/processed/
 .env
 .env.*
 
+# UI test screenshots
+screenshots/
+
 # IDE
 .vscode/
 .idea/
 .DS_Store
+
+# Tool config
+.claude/
+.playwright-mcp/
