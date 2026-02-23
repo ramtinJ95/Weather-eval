@@ -1,29 +1,24 @@
-export type HelloResponse = {
-  message: string
-  source: 'firestore' | 'default' | 'error'
-}
-
-export type PointMetricsRequest = {
+type PointMetricsRequest = {
   lat: number
   lon: number
   year: number
   month: number
 }
 
-export type DayMetric = {
+type DayMetric = {
   date: string
   cloud_mean_pct: number | null
   lightning_count: number
 }
 
-export type MonthMetric = {
+type MonthMetric = {
   month: number
   cloud_mean_pct: number | null
   lightning_probability: number
   lightning_count: number
 }
 
-export type YearMetric = {
+type YearMetric = {
   year: number
   cloud_mean_pct: number | null
   lightning_probability: number
@@ -36,24 +31,13 @@ export type PointMetricsResponse = {
     lon: number
     h3_r7: string
   }
-  cloud_station: {
-    station_id: string
-    name: string
-    distance_km: number
+  cloud_interpolation: {
+    nearest_station_name: string
+    nearest_station_distance_km: number
   } | null
   daily: { days: DayMetric[] }
   monthly: { months: MonthMetric[] }
   yearly: { years: YearMetric[] }
-}
-
-export async function fetchHello(): Promise<HelloResponse> {
-  const response = await fetch('/api/hello')
-
-  if (!response.ok) {
-    throw new Error(`Request failed (${response.status})`)
-  }
-
-  return (await response.json()) as HelloResponse
 }
 
 export async function fetchPointMetrics(

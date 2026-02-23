@@ -43,10 +43,13 @@ def test_metrics_endpoint_with_sample_data(tmp_path: Path) -> None:
                 "name": "Stockholm A",
                 "lat": 59.353,
                 "lon": 18.063,
-                "active": True,
-                "from_ts": 0,
-                "to_ts": 9999999999999,
-            }
+            },
+            {
+                "station_id": "98230",
+                "name": "Bromma",
+                "lat": 59.354,
+                "lon": 17.942,
+            },
         ],
     )
 
@@ -90,15 +93,23 @@ def test_metrics_endpoint_with_sample_data(tmp_path: Path) -> None:
         [
             {"station_id": "98210", "date": "2025-07-01", "cloud_mean_pct": 80.0},
             {"station_id": "98210", "date": "2025-07-02", "cloud_mean_pct": 65.0},
+            {"station_id": "98230", "date": "2025-07-01", "cloud_mean_pct": 60.0},
+            {"station_id": "98230", "date": "2025-07-02", "cloud_mean_pct": 45.0},
         ],
     )
     _write_json(
         processed / "cloud_station_monthly.json",
-        [{"station_id": "98210", "year": 2025, "month": 7, "cloud_mean_pct": 72.5}],
+        [
+            {"station_id": "98210", "year": 2025, "month": 7, "cloud_mean_pct": 72.5},
+            {"station_id": "98230", "year": 2025, "month": 7, "cloud_mean_pct": 52.5},
+        ],
     )
     _write_json(
         processed / "cloud_station_yearly.json",
-        [{"station_id": "98210", "year": 2025, "cloud_mean_pct": 69.0}],
+        [
+            {"station_id": "98210", "year": 2025, "cloud_mean_pct": 69.0},
+            {"station_id": "98230", "year": 2025, "cloud_mean_pct": 49.0},
+        ],
     )
 
     old_processed_dir = settings.processed_data_dir
@@ -115,13 +126,28 @@ def test_metrics_endpoint_with_sample_data(tmp_path: Path) -> None:
         payload = response.json()
 
         assert payload["point"]["h3_r7"] == h3_cell
-        assert payload["cloud_station"]["station_id"] == "98210"
+
+        interpolation = payload["cloud_interpolation"]
+        assert interpolation is not None
+        assert interpolation["nearest_station_distance_km"] > 0
+
         assert payload["daily"]["days"][0]["lightning_count"] == 2
-        assert payload["daily"]["days"][1]["cloud_mean_pct"] == 65.0
+        day1_cloud = payload["daily"]["days"][0]["cloud_mean_pct"]
+        assert day1_cloud is not None
+        assert 60.0 < day1_cloud < 80.0
+
+        day2_cloud = payload["daily"]["days"][1]["cloud_mean_pct"]
+        assert day2_cloud is not None
+        assert 45.0 < day2_cloud < 65.0
 
         july = next(month for month in payload["monthly"]["months"] if month["month"] == 7)
         assert july["lightning_count"] == 7
-        assert july["cloud_mean_pct"] == 72.5
+        assert july["cloud_mean_pct"] is not None
+        assert 52.5 < july["cloud_mean_pct"] < 72.5
+
+        year_2025 = next(y for y in payload["yearly"]["years"] if y["year"] == 2025)
+        assert year_2025["cloud_mean_pct"] is not None
+        assert 49.0 < year_2025["cloud_mean_pct"] < 69.0
     finally:
         settings.processed_data_dir = old_processed_dir
         get_metrics_store.cache_clear()

@@ -9,8 +9,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.db import read_hello_message
-from app.schemas import HelloResponse, PointMetricsRequest, PointMetricsResponse
+from app.schemas import PointMetricsRequest, PointMetricsResponse
 from app.weather_metrics import MetricsStore
 
 app = FastAPI(
@@ -32,12 +31,6 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/api/hello", response_model=HelloResponse)
-def hello() -> HelloResponse:
-    message, source = read_hello_message()
-    return HelloResponse(message=message, source=source)
-
-
 @lru_cache
 def get_metrics_store() -> MetricsStore:
     return MetricsStore.from_processed_dir(
@@ -50,6 +43,9 @@ def get_metrics_store() -> MetricsStore:
             settings.sweden_min_lon,
             settings.sweden_max_lon,
         ),
+        idw_power=settings.idw_power,
+        idw_max_neighbors=settings.idw_max_neighbors,
+        idw_max_distance_km=settings.idw_max_distance_km,
     )
 
 

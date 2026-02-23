@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from common import as_float, as_int, write_json
+from common import as_float, write_json
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,8 +47,6 @@ def main() -> None:
         name = str(station.get("name", "")).strip()
         lat = as_float(station.get("latitude"))
         lon = as_float(station.get("longitude"))
-        from_ts = as_int(station.get("from"))
-        to_ts = as_int(station.get("to"))
 
         if not station_id or not name or lat is None or lon is None:
             continue
@@ -59,9 +57,6 @@ def main() -> None:
                 "name": name,
                 "lat": lat,
                 "lon": lon,
-                "active": bool(station.get("active", False)),
-                "from_ts": from_ts,
-                "to_ts": to_ts,
             }
         )
 
