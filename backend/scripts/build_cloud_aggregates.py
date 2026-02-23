@@ -93,7 +93,7 @@ def _parse_station_csv(
             continue
 
         value = _to_float(value_str)
-        if value is None:
+        if value is None or value > 100:
             continue
 
         try:
