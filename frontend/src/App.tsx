@@ -78,6 +78,7 @@ function App() {
       .catch((err: Error) => {
         if (err.name !== 'AbortError') {
           setError(err.message)
+          setData(null)
         }
       })
       .finally(() => {
@@ -252,7 +253,7 @@ function App() {
                     tickFormatter={(v: number) => `${v}%`}
                     label={{ value: 'Cloud Cover', angle: 90, position: 'insideRight', style: { textAnchor: 'middle' } }}
                   />
-                  <Tooltip />
+                  <Tooltip labelFormatter={(label: string) => shortDate(label)} />
                   <Legend />
                   <Bar yAxisId="left" dataKey="lightning_count" fill="#f59e0b" name="Lightning count" />
                   <Line

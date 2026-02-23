@@ -154,6 +154,10 @@ Notes:
 - Two station feeds are merged:
   1. `corrected-archive` (historical baseline)
   2. `latest-months` (recent updates, includes 2026 coverage)
+- Observations with value > 100 are filtered out during aggregation. SMHI uses
+  the special value **113** to indicate that cloud cover could not be determined
+  due to fog, precipitation, or other obscuring phenomena. Since 113 is not a
+  valid percentage, including it would corrupt daily/monthly/yearly averages.
 
 ### 2) Spatial model (H3 resolution 7)
 
