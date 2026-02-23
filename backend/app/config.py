@@ -9,11 +9,6 @@ class Settings(BaseSettings):
     app_name: str = "weather-eval"
     frontend_origin: str = "http://localhost:5173"
 
-    firestore_project_id: str | None = None
-    firestore_collection: str = "app"
-    firestore_document: str = "hello"
-    default_hello_message: str = "Hello from fallback (Firestore not configured yet)."
-
     weather_data_dir: Path = Path(__file__).resolve().parents[1] / "data"
     processed_data_dir: Path = Path(__file__).resolve().parents[1] / "data" / "processed"
     weather_start_year: int = 2023
@@ -23,6 +18,10 @@ class Settings(BaseSettings):
     sweden_max_lat: float = 69.5
     sweden_min_lon: float = 10.5
     sweden_max_lon: float = 24.5
+
+    idw_power: float = 2.0
+    idw_max_neighbors: int = 6
+    idw_max_distance_km: float = 150.0
 
 
 settings = Settings()

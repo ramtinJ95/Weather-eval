@@ -193,10 +193,10 @@ function App() {
         {loading && <p>Loading metrics...</p>}
         {error && <p className="error">{error}</p>}
 
-        {data?.cloud_station && (
+        {data?.cloud_interpolation && (
           <p className="hint">
-            Nearest cloud station: <strong>{data.cloud_station.name}</strong> (#{' '}
-            {data.cloud_station.station_id}, {data.cloud_station.distance_km} km)
+            Cloud data: nearest station{' '}
+            <strong>{data.cloud_interpolation.nearest_station_name}</strong> ({data.cloud_interpolation.nearest_station_distance_km} km)
           </p>
         )}
 

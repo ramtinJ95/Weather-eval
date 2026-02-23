@@ -1,13 +1,4 @@
-from typing import Literal
-
 from pydantic import BaseModel, Field
-
-type HelloSource = Literal["firestore", "default", "error"]
-
-
-class HelloResponse(BaseModel):
-    message: str
-    source: HelloSource
 
 
 class PointMetricsRequest(BaseModel):
@@ -23,10 +14,9 @@ class PointInfo(BaseModel):
     h3_r7: str
 
 
-class CloudStationInfo(BaseModel):
-    station_id: str
-    name: str
-    distance_km: float
+class CloudInterpolationInfo(BaseModel):
+    nearest_station_name: str
+    nearest_station_distance_km: float
 
 
 class DayMetric(BaseModel):
@@ -63,7 +53,7 @@ class YearlyMetrics(BaseModel):
 
 class PointMetricsResponse(BaseModel):
     point: PointInfo
-    cloud_station: CloudStationInfo | None
+    cloud_interpolation: CloudInterpolationInfo | None
     daily: DailyMetrics
     monthly: MonthlyMetrics
     yearly: YearlyMetrics

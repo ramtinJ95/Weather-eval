@@ -3,6 +3,7 @@ from __future__ import annotations
 import calendar
 import json
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -11,7 +12,7 @@ from typing import Any
 import h3
 
 from app.schemas import (
-    CloudStationInfo,
+    CloudInterpolationInfo,
     DailyMetrics,
     DayMetric,
     MonthlyMetrics,
@@ -53,26 +54,6 @@ class Station:
     name: str
     lat: float
     lon: float
-    active: bool
-
-
-def _find_nearest(
-    candidates: list[Station], lat: float, lon: float
-) -> tuple[Station, float] | None:
-    if not candidates:
-        return None
-
-    winner: Station | None = None
-    winner_distance = float("inf")
-    for station in candidates:
-        distance = haversine_km(lat, lon, station.lat, station.lon)
-        if distance < winner_distance:
-            winner = station
-            winner_distance = distance
-
-    if winner is None:
-        return None
-    return winner, winner_distance
 
 
 class MetricsStore:
@@ -89,6 +70,9 @@ class MetricsStore:
         start_year: int,
         h3_resolution: int,
         bounds: tuple[float, float, float, float],
+        idw_power: float = 2.0,
+        idw_max_neighbors: int = 6,
+        idw_max_distance_km: float = 150.0,
     ) -> None:
         self.stations = stations
         self.lightning_daily = lightning_daily
@@ -100,7 +84,9 @@ class MetricsStore:
         self.start_year = start_year
         self.h3_resolution = h3_resolution
         self.bounds = bounds
-        self.stations_with_any_cloud_data = {station_id for station_id, _year in self.cloud_yearly}
+        self.idw_power = idw_power
+        self.idw_max_neighbors = idw_max_neighbors
+        self.idw_max_distance_km = idw_max_distance_km
 
     @classmethod
     def from_processed_dir(
@@ -110,6 +96,9 @@ class MetricsStore:
         start_year: int,
         h3_resolution: int,
         bounds: tuple[float, float, float, float],
+        idw_power: float = 2.0,
+        idw_max_neighbors: int = 6,
+        idw_max_distance_km: float = 150.0,
     ) -> MetricsStore:
         stations = _load_station_index(processed_dir / "station_index.json")
 
@@ -132,77 +121,98 @@ class MetricsStore:
             start_year=start_year,
             h3_resolution=h3_resolution,
             bounds=bounds,
+            idw_power=idw_power,
+            idw_max_neighbors=idw_max_neighbors,
+            idw_max_distance_km=idw_max_distance_km,
         )
 
     def is_point_in_bounds(self, lat: float, lon: float) -> bool:
         min_lat, max_lat, min_lon, max_lon = self.bounds
         return min_lat <= lat <= max_lat and min_lon <= lon <= max_lon
 
-    def nearest_station(self, lat: float, lon: float) -> tuple[Station, float] | None:
-        return _find_nearest(self.stations, lat, lon)
-
-    def nearest_station_with_cloud_data(
-        self, lat: float, lon: float, *, year: int, month: int
-    ) -> tuple[Station, float] | None:
-        candidates = [
-            station
-            for station in self.stations
-            if (station.station_id, year, month) in self.cloud_monthly
-            or (station.station_id, year) in self.cloud_yearly
+    def _sorted_station_distances(self, lat: float, lon: float) -> list[tuple[Station, float]]:
+        pairs = [
+            (station, haversine_km(lat, lon, station.lat, station.lon)) for station in self.stations
         ]
-        return _find_nearest(candidates, lat, lon)
+        pairs.sort(key=lambda p: p[1])
+        return pairs
 
-    def nearest_station_with_any_cloud_data(
-        self, lat: float, lon: float
-    ) -> tuple[Station, float] | None:
-        candidates = [
-            station
-            for station in self.stations
-            if station.station_id in self.stations_with_any_cloud_data
-        ]
-        return _find_nearest(candidates, lat, lon)
+    def _idw_cloud_value(
+        self,
+        station_distances: list[tuple[Station, float]],
+        lookup_fn: Callable[[str], float | None],
+    ) -> float | None:
+        collected: list[tuple[float, float]] = []
+        for station, distance in station_distances:
+            if distance > self.idw_max_distance_km:
+                break
+            value = lookup_fn(station.station_id)
+            if value is None:
+                continue
+            if distance < 1e-9:
+                return value
+            collected.append((distance, value))
+            if len(collected) >= self.idw_max_neighbors:
+                break
+
+        if not collected:
+            return None
+
+        weight_sum = 0.0
+        weighted_value_sum = 0.0
+        for distance, value in collected:
+            w = 1.0 / distance**self.idw_power
+            weight_sum += w
+            weighted_value_sum += w * value
+        return round(weighted_value_sum / weight_sum, 2)
 
     def query(self, *, lat: float, lon: float, year: int, month: int) -> PointMetricsResponse:
         h3_cell = latlng_to_h3_cell(lat, lon, self.h3_resolution)
-        station_match = self.nearest_station_with_cloud_data(lat, lon, year=year, month=month)
-        if station_match is None:
-            station_match = self.nearest_station_with_any_cloud_data(lat, lon)
-        if station_match is None:
-            station_match = self.nearest_station(lat, lon)
-        station: Station | None = None
-        station_info: CloudStationInfo | None = None
-        if station_match is not None:
-            station, distance_km = station_match
-            station_info = CloudStationInfo(
-                station_id=station.station_id,
-                name=station.name,
-                distance_km=round(distance_km, 2),
+        station_distances = self._sorted_station_distances(lat, lon)
+
+        interpolation_info: CloudInterpolationInfo | None = None
+        if station_distances:
+            nearest_station, nearest_distance = station_distances[0]
+            interpolation_info = CloudInterpolationInfo(
+                nearest_station_name=nearest_station.name,
+                nearest_station_distance_km=round(nearest_distance, 2),
             )
 
-        days = self._build_daily_series(h3_cell=h3_cell, station=station, year=year, month=month)
-        months = self._build_monthly_series(h3_cell=h3_cell, station=station, year=year)
-        years = self._build_yearly_series(h3_cell=h3_cell, station=station, selected_year=year)
+        days = self._build_daily_series(
+            h3_cell=h3_cell, station_distances=station_distances, year=year, month=month
+        )
+        months = self._build_monthly_series(
+            h3_cell=h3_cell, station_distances=station_distances, year=year
+        )
+        years = self._build_yearly_series(
+            h3_cell=h3_cell, station_distances=station_distances, selected_year=year
+        )
 
         return PointMetricsResponse(
             point=PointInfo(lat=lat, lon=lon, h3_r7=h3_cell),
-            cloud_station=station_info,
+            cloud_interpolation=interpolation_info,
             daily=DailyMetrics(days=days),
             monthly=MonthlyMetrics(months=months),
             yearly=YearlyMetrics(years=years),
         )
 
     def _build_daily_series(
-        self, *, h3_cell: str, station: Station | None, year: int, month: int
+        self,
+        *,
+        h3_cell: str,
+        station_distances: list[tuple[Station, float]],
+        year: int,
+        month: int,
     ) -> list[DayMetric]:
         days_in_month = calendar.monthrange(year, month)[1]
         out: list[DayMetric] = []
         for day in range(1, days_in_month + 1):
             date_str = f"{year:04d}-{month:02d}-{day:02d}"
             lightning_count = self.lightning_daily.get((h3_cell, date_str), 0)
-            cloud_mean_pct = None
-            if station is not None:
-                cloud_mean_pct = self.cloud_daily.get((station.station_id, date_str))
-
+            cloud_mean_pct = self._idw_cloud_value(
+                station_distances,
+                lambda sid, d=date_str: self.cloud_daily.get((sid, d)),
+            )
             out.append(
                 DayMetric(
                     date=date_str,
@@ -213,7 +223,11 @@ class MetricsStore:
         return out
 
     def _build_monthly_series(
-        self, *, h3_cell: str, station: Station | None, year: int
+        self,
+        *,
+        h3_cell: str,
+        station_distances: list[tuple[Station, float]],
+        year: int,
     ) -> list[MonthMetric]:
         out: list[MonthMetric] = []
         for month in range(1, 13):
@@ -221,10 +235,10 @@ class MetricsStore:
             lightning_count = int(lightning.get("strike_count", 0))
             lightning_probability = float(lightning.get("strike_probability", 0.0))
 
-            cloud_mean_pct = None
-            if station is not None:
-                cloud_mean_pct = self.cloud_monthly.get((station.station_id, year, month))
-
+            cloud_mean_pct = self._idw_cloud_value(
+                station_distances,
+                lambda sid, y=year, m=month: self.cloud_monthly.get((sid, y, m)),
+            )
             out.append(
                 MonthMetric(
                     month=month,
@@ -236,7 +250,11 @@ class MetricsStore:
         return out
 
     def _build_yearly_series(
-        self, *, h3_cell: str, station: Station | None, selected_year: int
+        self,
+        *,
+        h3_cell: str,
+        station_distances: list[tuple[Station, float]],
+        selected_year: int,
     ) -> list[YearMetric]:
         current_year = date.today().year
         end_year = min(max(selected_year, self.start_year), current_year)
@@ -247,10 +265,10 @@ class MetricsStore:
             lightning_count = int(lightning.get("strike_count", 0))
             lightning_probability = float(lightning.get("strike_probability", 0.0))
 
-            cloud_mean_pct = None
-            if station is not None:
-                cloud_mean_pct = self.cloud_yearly.get((station.station_id, year))
-
+            cloud_mean_pct = self._idw_cloud_value(
+                station_distances,
+                lambda sid, y=year: self.cloud_yearly.get((sid, y)),
+            )
             out.append(
                 YearMetric(
                     year=year,
@@ -278,11 +296,10 @@ def _load_station_index(path: Path) -> list[Station]:
         name = str(item.get("name", "")).strip()
         lat = _as_float(item.get("lat"))
         lon = _as_float(item.get("lon"))
-        active = bool(item.get("active", False))
         if not station_id or not name or lat is None or lon is None:
             continue
 
-        stations.append(Station(station_id=station_id, name=name, lat=lat, lon=lon, active=active))
+        stations.append(Station(station_id=station_id, name=name, lat=lat, lon=lon))
     return stations
 
 
