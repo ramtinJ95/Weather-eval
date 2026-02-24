@@ -20,8 +20,8 @@ const START_YEAR = 2023
 const END_YEAR = Math.max(START_YEAR, new Date().getFullYear())
 
 const SWEDEN_BOUNDS: [[number, number], [number, number]] = [
-  [54.5, 10.0],
-  [70.0, 25.0],
+  [55.0, 10.5],
+  [69.5, 24.5],
 ]
 
 function MapClickHandler({ onPick }: { onPick: (point: MapPoint) => void }) {
