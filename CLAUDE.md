@@ -60,6 +60,8 @@ Lightning data uses **H3 hexagonal cells at resolution 7** (~5km). Cloud data is
 
 Multi-stage Dockerfile: Node builds frontend, Python serves both frontend (as static files via FastAPI) and API. Deployed to GCP Cloud Run via GitHub Actions CI/CD.
 
+**Terraform**: CI runs `terraform fmt` and `terraform validate` on `infra/` PRs but does NOT auto-apply. After merging infra changes, run `terraform apply` manually from `infra/`.
+
 ## Conventions
 
 - **Backend linting**: ruff (rules: E, F, I, UP, B, A, C4, SIM), line length 100, target Python 3.12. Type checking with `ty`.

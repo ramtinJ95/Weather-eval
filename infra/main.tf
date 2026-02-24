@@ -19,7 +19,7 @@ provider "google" {
 locals {
   required_services = toset([
     "artifactregistry.googleapis.com",
-    "firestore.googleapis.com",
+
     "run.googleapis.com",
     "storage.googleapis.com",
   ])
@@ -35,15 +35,6 @@ resource "google_project_service" "required" {
   project            = var.project_id
   service            = each.value
   disable_on_destroy = false
-}
-
-resource "google_firestore_database" "default" {
-  project     = var.project_id
-  name        = "(default)"
-  location_id = var.firestore_location
-  type        = "FIRESTORE_NATIVE"
-
-  depends_on = [google_project_service.required]
 }
 
 resource "google_artifact_registry_repository" "docker" {
@@ -69,12 +60,6 @@ resource "google_service_account" "cloud_run" {
   project      = var.project_id
   account_id   = "weather-eval-cloudrun"
   display_name = "Cloud Run runtime SA"
-}
-
-resource "google_project_iam_member" "cloud_run_firestore" {
-  project = var.project_id
-  role    = "roles/datastore.user"
-  member  = "serviceAccount:${google_service_account.cloud_run.email}"
 }
 
 resource "google_project_iam_member" "github_actions_run_admin" {
@@ -136,10 +121,6 @@ resource "google_cloud_run_v2_service" "app" {
         }
       }
 
-      env {
-        name  = "WEATHER_EVAL_FIRESTORE_PROJECT_ID"
-        value = var.project_id
-      }
     }
   }
 
@@ -147,7 +128,6 @@ resource "google_cloud_run_v2_service" "app" {
 
   depends_on = [
     google_project_service.required,
-    google_project_iam_member.cloud_run_firestore,
   ]
 }
 

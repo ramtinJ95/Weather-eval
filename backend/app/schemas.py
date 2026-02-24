@@ -1,13 +1,4 @@
-from typing import Literal
-
 from pydantic import BaseModel, Field
-
-type HelloSource = Literal["firestore", "default", "error"]
-
-
-class HelloResponse(BaseModel):
-    message: str
-    source: HelloSource
 
 
 class PointMetricsRequest(BaseModel):

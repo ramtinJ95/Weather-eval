@@ -7,11 +7,6 @@ variable "region" {
   default = "us-central1"
 }
 
-variable "firestore_location" {
-  type    = string
-  default = "us-central1"
-}
-
 variable "artifact_registry_repository" {
   type    = string
   default = "weather-eval"

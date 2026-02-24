@@ -8,8 +8,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-import h3
-
+from app.geo import as_float, as_int, latlng_to_h3_cell
 from app.schemas import (
     CloudStationInfo,
     DailyMetrics,
@@ -21,15 +20,6 @@ from app.schemas import (
     YearlyMetrics,
     YearMetric,
 )
-
-
-def latlng_to_h3_cell(lat: float, lon: float, resolution: int) -> str:
-    if hasattr(h3, "latlng_to_cell"):
-        return str(h3.latlng_to_cell(lat, lon, resolution))
-    if hasattr(h3, "geo_to_h3"):
-        return str(h3.geo_to_h3(lat, lon, resolution))
-    msg = "Unsupported h3 package version: missing lat/lon to cell conversion API"
-    raise RuntimeError(msg)
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -276,8 +266,8 @@ def _load_station_index(path: Path) -> list[Station]:
             continue
         station_id = str(item.get("station_id", "")).strip()
         name = str(item.get("name", "")).strip()
-        lat = _as_float(item.get("lat"))
-        lon = _as_float(item.get("lon"))
+        lat = as_float(item.get("lat"))
+        lon = as_float(item.get("lon"))
         active = bool(item.get("active", False))
         if not station_id or not name or lat is None or lon is None:
             continue
@@ -309,8 +299,8 @@ def _load_lightning_monthly(path: Path) -> dict[tuple[str, int, int], dict[str, 
         if not isinstance(row, dict):
             continue
         h3_cell = str(row.get("h3", "")).strip()
-        year = _as_int(row.get("year"))
-        month = _as_int(row.get("month"))
+        year = as_int(row.get("year"))
+        month = as_int(row.get("month"))
         if not h3_cell or year is None or month is None:
             continue
         out[(h3_cell, year, month)] = row
@@ -327,7 +317,7 @@ def _load_lightning_yearly(path: Path) -> dict[tuple[str, int], dict[str, Any]]:
         if not isinstance(row, dict):
             continue
         h3_cell = str(row.get("h3", "")).strip()
-        year = _as_int(row.get("year"))
+        year = as_int(row.get("year"))
         if not h3_cell or year is None:
             continue
         out[(h3_cell, year)] = row
@@ -340,7 +330,7 @@ def _load_cloud_daily(path: Path) -> dict[tuple[str, str], float]:
     for row in rows:
         station_id = str(row.get("station_id", "")).strip()
         date_str = str(row.get("date", "")).strip()
-        cloud_mean_pct = _as_float(row.get("cloud_mean_pct"))
+        cloud_mean_pct = as_float(row.get("cloud_mean_pct"))
         if not station_id or not date_str or cloud_mean_pct is None:
             continue
         out[(station_id, date_str)] = cloud_mean_pct
@@ -357,9 +347,9 @@ def _load_cloud_monthly(path: Path) -> dict[tuple[str, int, int], float]:
         if not isinstance(row, dict):
             continue
         station_id = str(row.get("station_id", "")).strip()
-        year = _as_int(row.get("year"))
-        month = _as_int(row.get("month"))
-        cloud_mean_pct = _as_float(row.get("cloud_mean_pct"))
+        year = as_int(row.get("year"))
+        month = as_int(row.get("month"))
+        cloud_mean_pct = as_float(row.get("cloud_mean_pct"))
         if not station_id or year is None or month is None or cloud_mean_pct is None:
             continue
         out[(station_id, year, month)] = cloud_mean_pct
@@ -376,8 +366,8 @@ def _load_cloud_yearly(path: Path) -> dict[tuple[str, int], float]:
         if not isinstance(row, dict):
             continue
         station_id = str(row.get("station_id", "")).strip()
-        year = _as_int(row.get("year"))
-        cloud_mean_pct = _as_float(row.get("cloud_mean_pct"))
+        year = as_int(row.get("year"))
+        cloud_mean_pct = as_float(row.get("cloud_mean_pct"))
         if not station_id or year is None or cloud_mean_pct is None:
             continue
         out[(station_id, year)] = cloud_mean_pct
@@ -404,17 +394,3 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
             if isinstance(parsed, dict):
                 rows.append(parsed)
     return rows
-
-
-def _as_float(value: Any) -> float | None:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _as_int(value: Any) -> int | None:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None

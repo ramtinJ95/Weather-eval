@@ -9,8 +9,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.db import read_hello_message
-from app.schemas import HelloResponse, PointMetricsRequest, PointMetricsResponse
+from app.schemas import PointMetricsRequest, PointMetricsResponse
 from app.weather_metrics import MetricsStore
 
 app = FastAPI(
@@ -30,12 +29,6 @@ app = FastAPI(
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
-
-
-@app.get("/api/hello", response_model=HelloResponse)
-def hello() -> HelloResponse:
-    message, source = read_hello_message()
-    return HelloResponse(message=message, source=source)
 
 
 @lru_cache

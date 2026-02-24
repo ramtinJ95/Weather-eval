@@ -6,8 +6,9 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.config import settings
+from app.geo import latlng_to_h3_cell
 from app.main import app, get_metrics_store
-from app.weather_metrics import haversine_km, latlng_to_h3_cell
+from app.weather_metrics import haversine_km
 
 
 def _write_json(path: Path, payload: object) -> None:
