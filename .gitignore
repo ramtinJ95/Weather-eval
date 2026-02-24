@@ -25,6 +25,7 @@ backend/data/processed/
 # Env
 .env
 .env.*
+!.env.example
 
 # UI test screenshots
 screenshots/

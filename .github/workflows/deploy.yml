@@ -53,11 +53,29 @@ jobs:
           docker push "$IMAGE_URI"
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
 
-      - name: Deploy to Cloud Run
+      - name: Extract deployer SA email
+        id: sa-email
         run: |
-          gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
-            --project=${{ vars.GCP_PROJECT_ID }} \
-            --region=${{ vars.GCP_REGION }} \
-            --image="$IMAGE_URI" \
-            --allow-unauthenticated \
-            --set-env-vars=WEATHER_EVAL_FIRESTORE_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
+          EMAIL=$(echo '${{ secrets.GCP_SA_KEY }}' | jq -r .client_email)
+          echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        working-directory: infra
+        run: |
+          terraform init \
+            -backend-config="bucket=elvyweatherapp-tf-state-1771695072" \
+            -backend-config="prefix=weather-eval"
+
+      - name: Terraform apply
+        working-directory: infra
+        run: |
+          terraform apply -auto-approve \
+            -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
+            -var="region=${{ vars.GCP_REGION }}" \
+            -var="processed_data_bucket_name=${{ vars.WEATHER_DATA_BUCKET }}" \
+            -var="image=$IMAGE_URI" \
+            -var="cloud_run_service_name=${{ vars.CLOUD_RUN_SERVICE }}" \
+            -var="artifact_registry_repository=${{ vars.GAR_REPOSITORY }}" \
+            -var="github_actions_deployer_sa_email=${{ steps.sa-email.outputs.email }}"
