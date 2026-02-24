@@ -57,6 +57,7 @@ jobs:
       - name: Terraform plan
         id: plan
         run: |
+          set -o pipefail
           terraform plan -no-color \
             -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
             -var="region=${{ vars.GCP_REGION }}" \
