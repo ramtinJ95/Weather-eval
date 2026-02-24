@@ -19,6 +19,16 @@ locals {
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
   ])
+
+  deployer_member = (
+    var.deployer_sa_email != null && trimspace(var.deployer_sa_email) != ""
+  ) ? "serviceAccount:${trimspace(var.deployer_sa_email)}" : null
+
+  deployer_project_roles = toset([
+    "roles/resourcemanager.projectIamAdmin",
+    "roles/iam.serviceAccountAdmin",
+    "roles/serviceusage.serviceUsageAdmin",
+  ])
 }
 
 resource "google_project_service" "foundation" {
@@ -38,6 +48,24 @@ resource "google_storage_bucket" "terraform_state" {
   versioning {
     enabled = true
   }
+}
+
+resource "google_storage_bucket_iam_member" "deployer_state_access" {
+  count = local.deployer_member == null ? 0 : 1
+
+  bucket = google_storage_bucket.terraform_state.name
+  role   = "roles/storage.objectAdmin"
+  member = local.deployer_member
+}
+
+resource "google_project_iam_member" "deployer_terraform_roles" {
+  for_each = local.deployer_member != null ? local.deployer_project_roles : toset([])
+
+  project = var.project_id
+  role    = each.value
+  member  = local.deployer_member
+
+  depends_on = [google_project_service.foundation]
 }
 
 output "state_bucket" {
