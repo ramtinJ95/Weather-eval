@@ -135,12 +135,13 @@ The backend endpoint reads precomputed local files under:
 | Year: lightning count | `yearly.years[].lightning_count` | `lightning_h3_r7_yearly.json` | Derived from lightning daily CSV rows |
 | Year: lightning probability | `yearly.years[].lightning_probability` | `lightning_h3_r7_yearly.json` | Derived from lightning daily CSV rows |
 | Year: cloud mean % | `yearly.years[].cloud_mean_pct` | `cloud_station_yearly.json` | Derived from merged cloud station CSV rows |
-| Nearest station label/distance | `cloud_station.*` | `station_index.json` | Parameter-16 station metadata: `/parameter/16.json` |
+| Cloud interpolation info | `cloud_interpolation.*` | `station_index.json` + IDW at query time | Parameter-16 station metadata: `/parameter/16.json` |
 | Point H3 index | `point.h3_r7` | computed at request time | H3 transform of selected `(lat,lon)` |
 
 Notes:
 - Lightning metrics are spatially aggregated by **H3 resolution 7**.
-- Cloud metrics are **station-based** and mapped via nearest station selection.
+- Cloud metrics are **station-based** and IDW-interpolated from multiple
+  surrounding stations at query time.
 - `latest-months` is merged to extend recency (including 2026), while
   `corrected-archive` remains preferred when both provide the same timestamp.
 
@@ -153,6 +154,10 @@ Notes:
 - Two station feeds are merged:
   1. `corrected-archive` (historical baseline)
   2. `latest-months` (recent updates, includes 2026 coverage)
+- Observations with value > 100 are filtered out during aggregation. SMHI uses
+  the special value **113** to indicate that cloud cover could not be determined
+  due to fog, precipitation, or other obscuring phenomena. Since 113 is not a
+  valid percentage, including it would corrupt daily/monthly/yearly averages.
 
 ### 2) Spatial model (H3 resolution 7)
 
@@ -191,7 +196,9 @@ For each H3 r7 cell:
 
 ### 4) Cloud metrics formulas
 
-Cloud is station-based (not H3).
+Cloud data is station-based (not H3). At query time, cloud values are
+spatially interpolated using **Inverse Distance Weighting (IDW)** from
+multiple surrounding stations rather than using a single nearest station.
 
 #### 4.1 Data quality filtering
 - Keep only rows with quality code `G` or `Y`.
@@ -213,20 +220,41 @@ For each station:
 
 `n_samples` is preserved at each level for traceability.
 
+#### 4.4 IDW spatial interpolation (query time)
+
+For each time point (day/month/year), the cloud value at the clicked
+location is computed as a weighted average of up to **k = 6** nearest
+stations within **150 km**:
+
+```
+cloud_value = sum(w_i * v_i) / sum(w_i)
+where w_i = 1 / d_i^p, p = 2
+```
+
+- **p = 2** (power): industry-standard smooth distance falloff
+- **k = 6** (max neighbors): balances locality with robustness
+- **150 km** (max distance): appropriate for Sweden's station density
+- If a station is at distance ≈ 0, its value is returned directly
+- If no stations have data within range, `null` is returned
+
+These parameters are configurable via `WEATHER_EVAL_IDW_POWER`,
+`WEATHER_EVAL_IDW_MAX_NEIGHBORS`, and `WEATHER_EVAL_IDW_MAX_DISTANCE_KM`.
+
 ### 5) Point query logic (`POST /api/metrics/point`)
 
 Given `(lat, lon, year, month)`:
 
 1. Validate point is inside Sweden bounds (phase-1 safety bound).
 2. Convert point to H3 r7 cell.
-3. Select nearest cloud station with priority:
-   - nearest station with cloud data for selected year/month
-   - else nearest station with any cloud data in aggregates
-   - else nearest station overall
-4. Build response:
+3. Compute distances from the query point to all cloud stations, sorted
+   ascending. This sorted list is reused for all time-series builders.
+4. Build response — for each time point, cloud values are IDW-interpolated
+   from stations that have data for that specific date/month/year:
    - daily series for selected month
    - monthly series for selected year
    - yearly series from 2023 to selected/current year
+5. Return `cloud_interpolation` metadata (number of stations in range,
+   nearest station name and distance).
 
 ### 6) Why day/month can be empty while yearly has values
 

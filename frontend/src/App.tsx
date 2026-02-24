@@ -78,6 +78,7 @@ function App() {
       .catch((err: Error) => {
         if (err.name !== 'AbortError') {
           setError(err.message)
+          setData(null)
         }
       })
       .finally(() => {
@@ -126,7 +127,7 @@ function App() {
 
   return (
     <main className="app-shell">
-      <h1>weather-eval · phase 1</h1>
+      <h1>Thundercloud Sweden</h1>
 
       <section className="card">
         <h2>Select point (map click)</h2>
@@ -252,7 +253,7 @@ function App() {
                     tickFormatter={(v: number) => `${v}%`}
                     label={{ value: 'Cloud Cover', angle: 90, position: 'insideRight', style: { textAnchor: 'middle' } }}
                   />
-                  <Tooltip />
+                  <Tooltip labelFormatter={(label) => shortDate(String(label))} />
                   <Legend />
                   <Bar yAxisId="left" dataKey="lightning_count" fill="#f59e0b" name="Lightning count" />
                   <Line

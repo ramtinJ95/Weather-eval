@@ -1,24 +1,24 @@
-export type PointMetricsRequest = {
+type PointMetricsRequest = {
   lat: number
   lon: number
   year: number
   month: number
 }
 
-export type DayMetric = {
+type DayMetric = {
   date: string
   cloud_mean_pct: number | null
   lightning_count: number
 }
 
-export type MonthMetric = {
+type MonthMetric = {
   month: number
   cloud_mean_pct: number | null
   lightning_probability: number
   lightning_count: number
 }
 
-export type YearMetric = {
+type YearMetric = {
   year: number
   cloud_mean_pct: number | null
   lightning_probability: number

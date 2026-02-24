@@ -12,7 +12,6 @@ from common import write_json, write_jsonl
 
 @dataclass(frozen=True)
 class CloudObservation:
-    station_id: str
     date_str: str
     time_str: str
     value: float
@@ -94,7 +93,7 @@ def _parse_station_csv(
             continue
 
         value = _to_float(value_str)
-        if value is None:
+        if value is None or value > 100:
             continue
 
         try:
@@ -106,7 +105,6 @@ def _parse_station_csv(
 
         key = (date_str, time_str)
         candidate = CloudObservation(
-            station_id=station_id,
             date_str=date_str,
             time_str=time_str,
             value=value,
